@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/verify-email', authController.verifyEmail);
+router.post('/resend-code', authController.resendCode);
 router.get('/me', authMiddleware, authController.me);
 router.put('/me', authMiddleware, authController.updateProfile);
 router.post('/add-contact', authMiddleware, authController.addContact);

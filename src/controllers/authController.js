@@ -23,16 +23,38 @@ function validateEmail(email) {
 exports.register = async (req, res) => {
   const { email, password, displayName, username } = req.body;
   try {
-    if (!validateEmail(email)) return res.status(400).json({ message: 'Geçersiz e-posta formatı' });
+    // Gerekli alanları kontrol et
+    if (!email || !password || !displayName || !username) {
+      return res.status(400).json({ message: 'Tüm alanlar gereklidir!' });
+    }
+
+    // E-posta formatını kontrol et
+    if (!validateEmail(email)) return res.status(400).json({ message: 'Geçersiz e-posta formatı!' });
+    
+    // Şifre uzunluğunu kontrol et
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Şifre en az 6 karakter olmalıdır!' });
+    }
+
+    // Kullanıcı adı uzunluğunu kontrol et
+    if (username.length < 3) {
+      return res.status(400).json({ message: 'Kullanıcı adı en az 3 karakter olmalıdır!' });
+    }
+
+    // Kullanıcı adı formatını kontrol et
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return res.status(400).json({ message: 'Kullanıcı adı sadece harf, rakam ve alt çizgi içerebilir!' });
+    }
     
     const existing = await User.findOne({ where: { email } });
-    if (existing) return res.status(400).json({ message: 'Email already in use' });
+    if (existing) return res.status(400).json({ message: 'Bu e-posta adresi zaten kullanılıyor!' });
     
     const existingUsername = await User.findOne({ where: { username } });
-    if (existingUsername) return res.status(400).json({ message: 'Username already in use' });
+    if (existingUsername) return res.status(400).json({ message: 'Bu kullanıcı adı zaten kullanılıyor!' });
     
     const passwordHash = await bcrypt.hash(password, 10);
-    // E-posta doğrulama kodu üret
+    
+    // Email doğrulama kodu oluştur
     const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
     
     const user = await User.create({ 
@@ -40,19 +62,38 @@ exports.register = async (req, res) => {
       passwordHash, 
       displayName, 
       username, 
-      verified: false, 
-      emailCode 
+      verified: false, // Email doğrulaması gerekli
+      emailCode: emailCode 
     });
     
-    // E-posta gönder
-    await transporter.sendMail({
-      from: 'no-reply@verxiel.com',
-      to: email,
-      subject: 'Verxiel E-posta Doğrulama',
-      text: `Doğrulama kodunuz: ${emailCode}`
+    // Email gönder
+    try {
+      await transporter.sendMail({
+        from: '"Verxiel" <noreply@verxiel.com>',
+        to: email,
+        subject: 'Verxiel - Email Doğrulama',
+        html: `
+          <h2>Verxiel'e Hoş Geldiniz!</h2>
+          <p>Email adresinizi doğrulamak için aşağıdaki kodu kullanın:</p>
+          <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
+          <p>Bu kod 10 dakika geçerlidir.</p>
+          <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+        `
+      });
+    } catch (emailErr) {
+      console.error('Email gönderme hatası:', emailErr);
+      // Email gönderilemese bile kullanıcıyı oluştur
+    }
+    
+    res.status(201).json({ 
+      message: 'Kayıt başarılı! Email adresinizi doğrulayın.', 
+      user: { 
+        id: user.id,
+        email: user.email, 
+        displayName: user.displayName, 
+        username: user.username 
+      } 
     });
-    console.log('DEBUG: Doğrulama kodu:', emailCode, '->', email);
-    res.status(201).json({ message: 'Kayıt başarılı, e-posta doğrulama kodu gönderildi', user: { email, displayName, username } });
   } catch (err) {
     console.error('EMAIL ERROR:', err);
     res.status(500).json({ message: 'Registration failed', error: err.message });
@@ -63,16 +104,22 @@ exports.login = async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
-    
-    // Geçici olarak e-posta doğrulama kontrolünü kaldır
-    // if (!user.verified) return res.status(400).json({ message: 'E-posta doğrulanmamış. Lütfen e-posta adresinizi doğrulayın.' });
+    if (!user) return res.status(400).json({ message: 'E-posta veya şifre hatalı!' });
     
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!valid) return res.status(400).json({ message: 'E-posta veya şifre hatalı!' });
+    
+    // Email doğrulama kontrolü
+    if (!user.verified) {
+      return res.status(400).json({ 
+        message: 'Email adresinizi doğrulamanız gerekiyor!', 
+        needsVerification: true,
+        email: user.email 
+      });
+    }
     
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl, _id: user.id } });
+    res.json({ token, user: { email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl, id: user.id } });
   } catch (err) {
     res.status(500).json({ message: 'Login failed', error: err.message });
   }
@@ -93,6 +140,43 @@ exports.verifyEmail = async (req, res) => {
     res.json({ message: 'E-posta doğrulandı' });
   } catch (err) {
     res.status(500).json({ message: 'Doğrulama başarısız', error: err.message });
+  }
+};
+
+// Kod yeniden gönder
+exports.resendCode = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    if (user.verified) return res.status(400).json({ message: 'Zaten doğrulanmış' });
+    
+    // Yeni kod oluştur
+    const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.emailCode = emailCode;
+    await user.save();
+    
+    // Email gönder
+    try {
+      await transporter.sendMail({
+        from: '"Verxiel" <noreply@verxiel.com>',
+        to: email,
+        subject: 'Verxiel - Email Doğrulama Kodu',
+        html: `
+          <h2>Yeni Doğrulama Kodu</h2>
+          <p>Email adresinizi doğrulamak için aşağıdaki kodu kullanın:</p>
+          <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
+          <p>Bu kod 10 dakika geçerlidir.</p>
+          <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+        `
+      });
+      res.json({ message: 'Yeni kod gönderildi' });
+    } catch (emailErr) {
+      console.error('Email gönderme hatası:', emailErr);
+      res.status(500).json({ message: 'Kod gönderilemedi' });
+    }
+  } catch (err) {
+    res.status(500).json({ message: 'İşlem başarısız', error: err.message });
   }
 };
 
@@ -148,7 +232,7 @@ exports.getContacts = async (req, res) => {
     
     const contacts = await User.findAll({
       where: { id: contactIds },
-      attributes: ['id', 'displayName', 'email', 'avatarUrl']
+      attributes: ['id', 'displayName', 'email', 'avatarUrl', 'username']
     });
     
     res.json(contacts);

@@ -8,15 +8,41 @@ const sequelize = require('./config/database');
 
 const authRoutes = require('./routes/auth');
 const messageRoutes = require('./routes/message');
+const qrRoutes = require('./routes/qr');
 
 const app = express();
 const PORT = process.env.PORT || 8790;
 
-app.use(cors());
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || '*',
+  credentials: true
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Verxiel Server is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Health check endpoint - en üstte olmalı
+app.get('/api/health', (req, res) => {
+  console.log('Health check requested');
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Diğer route'lar
 app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/auth', qrRoutes); // QR route'larını geçici olarak auth altına taşı
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
