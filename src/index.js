@@ -42,7 +42,7 @@ app.get('/api/health', (req, res) => {
 // Diğer route'lar
 app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);
-app.use('/api/auth', qrRoutes); // QR route'larını geçici olarak auth altına taşı
+app.use('/api/qr', qrRoutes); // QR route'larını ayrı path'e taşı
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
