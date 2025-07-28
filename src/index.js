@@ -14,7 +14,11 @@ const app = express();
 const PORT = process.env.PORT || 8790;
 
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [
+    'http://localhost:3000',
+    'https://verxiel.netlify.app',
+    'https://verxiel.onrender.com'
+  ],
   credentials: true
 };
 app.use(cors(corsOptions));
