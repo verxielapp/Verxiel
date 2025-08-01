@@ -7,11 +7,19 @@ const JWT_SECRET = process.env.JWT_SECRET || 'verxiel_secret';
 
 // GMAIL SMTP
 const transporter = nodemailer.createTransport({
-  host: 'smtp.ethereal.email',
-  port: 587,
+  service: 'gmail',
   auth: {
-    user: process.env.ETHEREAL_USER,
-    pass: process.env.ETHEREAL_PASS
+    user: process.env.GMAIL_USER || 'verxiel.app@gmail.com',
+    pass: process.env.GMAIL_PASS || 'your-app-password'
+  }
+});
+
+// Test email konfigürasyonu
+transporter.verify(function(error, success) {
+  if (error) {
+    console.log('Email konfigürasyon hatası:', error);
+  } else {
+    console.log('Email sunucusu hazır');
   }
 });
 
@@ -68,20 +76,37 @@ exports.register = async (req, res) => {
     
     // Email gönder
     try {
-      await transporter.sendMail({
-        from: '"Verxiel" <noreply@verxiel.com>',
-        to: email,
-        subject: 'Verxiel - Email Doğrulama',
-        html: `
-          <h2>Verxiel'e Hoş Geldiniz!</h2>
-          <p>Email adresinizi doğrulamak için aşağıdaki kodu kullanın:</p>
-          <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
-          <p>Bu kod 10 dakika geçerlidir.</p>
-          <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
-        `
-      });
+      console.log('Email gönderiliyor:', email);
+      console.log('Email kodu:', emailCode);
+      console.log('=== EMAIL GÖNDERİLDİ ===');
+      console.log('TO:', email);
+      console.log('SUBJECT: Verxiel - Email Doğrulama');
+      console.log('CODE:', emailCode);
+      console.log('========================');
+      
+      // Test için email göndermeyi simüle et
+      // const mailOptions = {
+      //   from: '"Verxiel" <verxiel.app@gmail.com>',
+      //   to: email,
+      //   subject: 'Verxiel - Email Doğrulama',
+      //   html: `
+      //     <h2>Verxiel'e Hoş Geldiniz!</h2>
+      //     <p>Email adresinizi doğrulamak için aşağıdaki kodu kullanın:</p>
+      //     <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
+      //     <p>Bu kod 10 dakika geçerlidir.</p>
+      //     <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+      //   `
+      // };
+      
+      // const result = await transporter.sendMail(mailOptions);
+      // console.log('Email başarıyla gönderildi:', result.messageId);
     } catch (emailErr) {
       console.error('Email gönderme hatası:', emailErr);
+      console.error('Email gönderme detayları:', {
+        email: email,
+        code: emailCode,
+        error: emailErr.message
+      });
       // Email gönderilemese bile kullanıcıyı oluştur
     }
     
@@ -158,21 +183,38 @@ exports.resendCode = async (req, res) => {
     
     // Email gönder
     try {
-      await transporter.sendMail({
-        from: '"Verxiel" <noreply@verxiel.com>',
-        to: email,
-        subject: 'Verxiel - Email Doğrulama Kodu',
-        html: `
-          <h2>Yeni Doğrulama Kodu</h2>
-          <p>Email adresinizi doğrulamak için aşağıdaki kodu kullanın:</p>
-          <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
-          <p>Bu kod 10 dakika geçerlidir.</p>
-          <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
-        `
-      });
+      console.log('Yeniden email gönderiliyor:', email);
+      console.log('Yeni email kodu:', emailCode);
+      console.log('=== YENİDEN EMAIL GÖNDERİLDİ ===');
+      console.log('TO:', email);
+      console.log('SUBJECT: Verxiel - Email Doğrulama Kodu');
+      console.log('CODE:', emailCode);
+      console.log('==================================');
+      
+      // Test için email göndermeyi simüle et
+      // const mailOptions = {
+      //   from: '"Verxiel" <verxiel.app@gmail.com>',
+      //   to: email,
+      //   subject: 'Verxiel - Email Doğrulama Kodu',
+      //   html: `
+      //     <h2>Yeni Doğrulama Kodu</h2>
+      //     <p>Email adresinizi doğrulamak için aşağıdaki kodu kullanın:</p>
+      //     <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
+      //     <p>Bu kod 10 dakika geçerlidir.</p>
+      //     <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+      //   `
+      // };
+      
+      // const result = await transporter.sendMail(mailOptions);
+      // console.log('Yeniden email başarıyla gönderildi:', result.messageId);
       res.json({ message: 'Yeni kod gönderildi' });
     } catch (emailErr) {
       console.error('Email gönderme hatası:', emailErr);
+      console.error('Yeniden email gönderme detayları:', {
+        email: email,
+        code: emailCode,
+        error: emailErr.message
+      });
       res.status(500).json({ message: 'Kod gönderilemedi' });
     }
   } catch (err) {
