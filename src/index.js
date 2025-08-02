@@ -58,6 +58,56 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Token doğrulama test endpoint'i
+app.get('/api/verify-token', (req, res) => {
+  const auth = req.headers.authorization;
+  if (!auth) {
+    return res.status(401).json({ 
+      message: 'No token provided',
+      valid: false 
+    });
+  }
+  
+  const token = auth.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ 
+      message: 'Invalid token format',
+      valid: false 
+    });
+  }
+  
+  try {
+    const jwt = require('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'verxiel_secret';
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    res.json({ 
+      message: 'Token is valid',
+      valid: true,
+      user: decoded,
+      secret: JWT_SECRET ? 'JWT_SECRET is set' : 'JWT_SECRET is not set'
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(401).json({ 
+      message: 'Invalid token',
+      valid: false,
+      error: error.message
+    });
+  }
+});
+
+// Environment variables kontrol endpoint'i
+app.get('/api/env-check', (req, res) => {
+  res.json({
+    JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'NOT SET',
+    EMAIL_USER: process.env.EMAIL_USER ? 'SET' : 'NOT SET',
+    EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? 'SET' : 'NOT SET',
+    CORS_ORIGIN: process.env.CORS_ORIGIN || 'DEFAULT',
+    PORT: process.env.PORT || 8790
+  });
+});
+
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 chatSocket(io);
