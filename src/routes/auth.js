@@ -10,6 +10,7 @@ router.post('/resend-code', authController.resendCode);
 router.get('/me', authMiddleware, authController.me);
 router.put('/me', authMiddleware, authController.updateProfile);
 router.post('/add-contact', authMiddleware, authController.addContact);
+router.post('/add-contact-email', authMiddleware, authController.addContactByEmail);
 router.get('/contacts', authMiddleware, authController.getContacts);
 router.get('/find', authMiddleware, authController.findUser);
 router.post('/block', authMiddleware, authController.blockUser);

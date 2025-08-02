@@ -9,8 +9,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'verxiel_secret';
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.GMAIL_USER || 'verxiel.app@gmail.com',
-    pass: process.env.GMAIL_PASS || 'your-app-password'
+    user: 'verxiel.app@gmail.com',
+    pass: 'your-app-password' // Gmail App Password gerekli
   }
 });
 
@@ -78,28 +78,22 @@ exports.register = async (req, res) => {
     try {
       console.log('Email gönderiliyor:', email);
       console.log('Email kodu:', emailCode);
-      console.log('=== EMAIL GÖNDERİLDİ ===');
-      console.log('TO:', email);
-      console.log('SUBJECT: Verxiel - Email Doğrulama');
-      console.log('CODE:', emailCode);
-      console.log('========================');
       
-      // Test için email göndermeyi simüle et
-      // const mailOptions = {
-      //   from: '"Verxiel" <verxiel.app@gmail.com>',
-      //   to: email,
-      //   subject: 'Verxiel - Email Doğrulama',
-      //   html: `
-      //     <h2>Verxiel'e Hoş Geldiniz!</h2>
-      //     <p>Email adresinizi doğrulamak için aşağıdaki kodu kullanın:</p>
-      //     <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
-      //     <p>Bu kod 10 dakika geçerlidir.</p>
-      //     <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
-      //   `
-      // };
+      const mailOptions = {
+        from: '"Verxiel" <verxiel.app@gmail.com>',
+        to: email,
+        subject: 'Verxiel - Email Doğrulama',
+        html: `
+          <h2>Verxiel'e Hoş Geldiniz!</h2>
+          <p>Email adresinizi doğrulamak için aşağıdaki kodu kullanın:</p>
+          <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
+          <p>Bu kod 10 dakika geçerlidir.</p>
+          <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+        `
+      };
       
-      // const result = await transporter.sendMail(mailOptions);
-      // console.log('Email başarıyla gönderildi:', result.messageId);
+      const result = await transporter.sendMail(mailOptions);
+      console.log('Email başarıyla gönderildi:', result.messageId);
     } catch (emailErr) {
       console.error('Email gönderme hatası:', emailErr);
       console.error('Email gönderme detayları:', {
@@ -162,7 +156,19 @@ exports.verifyEmail = async (req, res) => {
     user.verified = true;
     user.emailCode = null;
     await user.save();
-    res.json({ message: 'E-posta doğrulandı' });
+    
+    // Doğrulama başarılı, token oluştur ve döndür
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ 
+      message: 'E-posta doğrulandı',
+      token: token,
+      user: { 
+        email: user.email, 
+        displayName: user.displayName, 
+        avatarUrl: user.avatarUrl, 
+        id: user.id 
+      }
+    });
   } catch (err) {
     res.status(500).json({ message: 'Doğrulama başarısız', error: err.message });
   }
@@ -185,28 +191,22 @@ exports.resendCode = async (req, res) => {
     try {
       console.log('Yeniden email gönderiliyor:', email);
       console.log('Yeni email kodu:', emailCode);
-      console.log('=== YENİDEN EMAIL GÖNDERİLDİ ===');
-      console.log('TO:', email);
-      console.log('SUBJECT: Verxiel - Email Doğrulama Kodu');
-      console.log('CODE:', emailCode);
-      console.log('==================================');
       
-      // Test için email göndermeyi simüle et
-      // const mailOptions = {
-      //   from: '"Verxiel" <verxiel.app@gmail.com>',
-      //   to: email,
-      //   subject: 'Verxiel - Email Doğrulama Kodu',
-      //   html: `
-      //     <h2>Yeni Doğrulama Kodu</h2>
-      //     <p>Email adresinizi doğrulamak için aşağıdaki kodu kullanın:</p>
-      //     <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
-      //     <p>Bu kod 10 dakika geçerlidir.</p>
-      //     <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
-      //   `
-      // };
+      const mailOptions = {
+        from: '"Verxiel" <verxiel.app@gmail.com>',
+        to: email,
+        subject: 'Verxiel - Email Doğrulama Kodu',
+        html: `
+          <h2>Yeni Doğrulama Kodu</h2>
+          <p>Email adresinizi doğrulamak için aşağıdaki kodu kullanın:</p>
+          <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
+          <p>Bu kod 10 dakika geçerlidir.</p>
+          <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+        `
+      };
       
-      // const result = await transporter.sendMail(mailOptions);
-      // console.log('Yeniden email başarıyla gönderildi:', result.messageId);
+      const result = await transporter.sendMail(mailOptions);
+      console.log('Yeniden email başarıyla gönderildi:', result.messageId);
       res.json({ message: 'Yeni kod gönderildi' });
     } catch (emailErr) {
       console.error('Email gönderme hatası:', emailErr);
@@ -257,6 +257,43 @@ exports.addContact = async (req, res) => {
     await user.save();
     
     res.json({ message: 'Kişi eklendi', contacts: contacts });
+  } catch (err) {
+    res.status(500).json({ message: 'Kişi eklenemedi', error: err.message });
+  }
+};
+
+// Email ile kişi ekle
+exports.addContactByEmail = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email adresi gerekli' });
+  
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    
+    // Email ile kullanıcı bul
+    const contactUser = await User.findOne({ where: { email } });
+    if (!contactUser) return res.status(404).json({ message: 'Bu email adresi ile kayıtlı kullanıcı bulunamadı' });
+    
+    if (contactUser.id === user.id) return res.status(400).json({ message: 'Kendini ekleyemezsin' });
+    
+    const contacts = user.getContacts();
+    if (contacts.includes(contactUser.id)) return res.status(400).json({ message: 'Bu kişi zaten listenizde' });
+    
+    contacts.push(contactUser.id);
+    user.setContacts(contacts);
+    await user.save();
+    
+    res.json({ 
+      message: 'Kişi eklendi', 
+      contact: {
+        id: contactUser.id,
+        displayName: contactUser.displayName,
+        email: contactUser.email,
+        username: contactUser.username,
+        avatarUrl: contactUser.avatarUrl
+      }
+    });
   } catch (err) {
     res.status(500).json({ message: 'Kişi eklenemedi', error: err.message });
   }
