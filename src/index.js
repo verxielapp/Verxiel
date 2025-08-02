@@ -48,6 +48,16 @@ app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/qr', qrRoutes); // QR route'larını ayrı path'e taşı
 
+// Test endpoint'i - route'ların çalışıp çalışmadığını kontrol et
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: 'API routes are working',
+    authRoutes: !!authRoutes,
+    messageRoutes: !!messageRoutes,
+    qrRoutes: !!qrRoutes
+  });
+});
+
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 chatSocket(io);
