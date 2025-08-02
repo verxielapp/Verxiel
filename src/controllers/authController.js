@@ -5,21 +5,27 @@ const nodemailer = require('nodemailer');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'verxiel_secret';
 
-// GMAIL SMTP
+// GMAIL SMTP - Gerçek email gönderimi
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'verxiel.app@gmail.com',
-    pass: 'your-app-password' // Gmail App Password gerekli
+    pass: 'butt qhis zfvd noxp'
   }
 });
 
 // Test email konfigürasyonu
 transporter.verify(function(error, success) {
   if (error) {
-    console.log('Email konfigürasyon hatası:', error);
+    console.log('❌ Email konfigürasyon hatası:', error.message);
+    console.log('⚠️  Email gönderimi çalışmayacak! Gmail App Password ayarlayın.');
+    console.log('📧 Gmail App Password oluşturma:');
+    console.log('   1. Gmail → Google Hesabı → Güvenlik → 2 Adımlı Doğrulama (açık)');
+    console.log('   2. Uygulama Şifreleri → Diğer → Verxiel → Şifre oluştur');
+    console.log('   3. Oluşan 16 haneli şifreyi kodda "your-gmail-app-password" yerine yazın');
   } else {
-    console.log('Email sunucusu hazır');
+    console.log('✅ Gmail SMTP sunucusu hazır');
+    console.log('📧 Gerçek email gönderimi aktif!');
   }
 });
 
@@ -80,7 +86,7 @@ exports.register = async (req, res) => {
       console.log('Email kodu:', emailCode);
       
       const mailOptions = {
-        from: '"Verxiel" <verxiel.app@gmail.com>',
+        from: '"Verxiel" <noreply@verxiel.app>',
         to: email,
         subject: 'Verxiel - Email Doğrulama',
         html: `
@@ -89,13 +95,15 @@ exports.register = async (req, res) => {
           <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
           <p>Bu kod 10 dakika geçerlidir.</p>
           <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+          <hr>
+          <p style="color: #666; font-size: 12px;">Bu email Verxiel uygulamasından gönderilmiştir.</p>
         `
       };
       
       const result = await transporter.sendMail(mailOptions);
-      console.log('Email başarıyla gönderildi:', result.messageId);
+      console.log('✅ Email başarıyla gönderildi:', result.messageId);
     } catch (emailErr) {
-      console.error('Email gönderme hatası:', emailErr);
+      console.error('❌ Email gönderme hatası:', emailErr);
       console.error('Email gönderme detayları:', {
         email: email,
         code: emailCode,
@@ -193,7 +201,7 @@ exports.resendCode = async (req, res) => {
       console.log('Yeni email kodu:', emailCode);
       
       const mailOptions = {
-        from: '"Verxiel" <verxiel.app@gmail.com>',
+        from: '"Verxiel" <noreply@verxiel.app>',
         to: email,
         subject: 'Verxiel - Email Doğrulama Kodu',
         html: `
@@ -202,14 +210,16 @@ exports.resendCode = async (req, res) => {
           <h1 style="color: #a259e6; font-size: 32px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px;">${emailCode}</h1>
           <p>Bu kod 10 dakika geçerlidir.</p>
           <p>Eğer bu işlemi siz yapmadıysanız, bu emaili görmezden gelebilirsiniz.</p>
+          <hr>
+          <p style="color: #666; font-size: 12px;">Bu email Verxiel uygulamasından gönderilmiştir.</p>
         `
       };
       
       const result = await transporter.sendMail(mailOptions);
-      console.log('Yeniden email başarıyla gönderildi:', result.messageId);
+      console.log('✅ Yeniden email başarıyla gönderildi:', result.messageId);
       res.json({ message: 'Yeni kod gönderildi' });
     } catch (emailErr) {
-      console.error('Email gönderme hatası:', emailErr);
+      console.error('❌ Email gönderme hatası:', emailErr);
       console.error('Yeniden email gönderme detayları:', {
         email: email,
         code: emailCode,
