@@ -5,12 +5,12 @@ const nodemailer = require('nodemailer');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'verxiel_secret';
 
-// GMAIL SMTP - Gerçek email gönderimi
+// GMAIL SMTP - Gerçek email gönderimi (Environment Variables ile güvenli)
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'verxiel.app@gmail.com',
-    pass: 'butt qhis zfvd noxp'
+    user: process.env.EMAIL_USER || 'verxielapp@gmail.com',
+    pass: process.env.EMAIL_PASSWORD || 'butt qhis zfvd noxp'
   }
 });
 
@@ -278,33 +278,25 @@ exports.addContactByEmail = async (req, res) => {
   if (!email) return res.status(400).json({ message: 'Email adresi gerekli' });
   
   try {
-    const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    const currentUser = await User.findByPk(req.user.id);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    }
     
-    // Email ile kullanıcı bul
-    const contactUser = await User.findOne({ where: { email } });
-    if (!contactUser) return res.status(404).json({ message: 'Bu email adresi ile kayıtlı kullanıcı bulunamadı' });
+    const targetUser = await User.findOne({ where: { email } });
+    if (!targetUser) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    if (targetUser.id === currentUser.id) return res.status(400).json({ message: 'Kendini ekleyemezsin' });
     
-    if (contactUser.id === user.id) return res.status(400).json({ message: 'Kendini ekleyemezsin' });
+    const contacts = currentUser.getContacts();
+    if (contacts.includes(targetUser.id)) return res.status(400).json({ message: 'Zaten ekli' });
     
-    const contacts = user.getContacts();
-    if (contacts.includes(contactUser.id)) return res.status(400).json({ message: 'Bu kişi zaten listenizde' });
+    contacts.push(targetUser.id);
+    currentUser.setContacts(contacts);
+    await currentUser.save();
     
-    contacts.push(contactUser.id);
-    user.setContacts(contacts);
-    await user.save();
-    
-    res.json({ 
-      message: 'Kişi eklendi', 
-      contact: {
-        id: contactUser.id,
-        displayName: contactUser.displayName,
-        email: contactUser.email,
-        username: contactUser.username,
-        avatarUrl: contactUser.avatarUrl
-      }
-    });
+    res.json({ message: 'Kişi eklendi', contacts: contacts });
   } catch (err) {
+    console.error('addContactByEmail error:', err);
     res.status(500).json({ message: 'Kişi eklenemedi', error: err.message });
   }
 };
@@ -313,6 +305,10 @@ exports.addContactByEmail = async (req, res) => {
 exports.getContacts = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    }
+    
     const contactIds = user.getContacts();
     
     if (contactIds.length === 0) {
@@ -326,6 +322,7 @@ exports.getContacts = async (req, res) => {
     
     res.json(contacts);
   } catch (err) {
+    console.error('getContacts error:', err);
     res.status(500).json({ message: 'Kişiler alınamadı', error: err.message });
   }
 };
