@@ -11,8 +11,11 @@ module.exports = (io) => {
     try {
       const payload = jwt.verify(token, JWT_SECRET);
       socket.user = payload;
+      // Kullanıcıyı kendi odasına ekle
+      socket.join(payload.id.toString());
       next();
     } catch (err) {
+      console.error('Socket auth error:', err);
       next(new Error('Authentication error'));
     }
   });

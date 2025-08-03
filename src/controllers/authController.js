@@ -278,22 +278,35 @@ exports.addContactByEmail = async (req, res) => {
   if (!email) return res.status(400).json({ message: 'Email adresi gerekli' });
   
   try {
+    console.log('Adding contact by email:', email);
+    console.log('Current user ID:', req.user.id);
+    
     const currentUser = await User.findByPk(req.user.id);
     if (!currentUser) {
+      console.log('Current user not found');
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
     
     const targetUser = await User.findOne({ where: { email } });
-    if (!targetUser) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    if (!targetUser) {
+      console.log('Target user not found for email:', email);
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    }
+    
+    console.log('Target user found:', targetUser.id, targetUser.displayName);
+    
     if (targetUser.id === currentUser.id) return res.status(400).json({ message: 'Kendini ekleyemezsin' });
     
     const contacts = currentUser.getContacts();
+    console.log('Current contacts:', contacts);
+    
     if (contacts.includes(targetUser.id)) return res.status(400).json({ message: 'Zaten ekli' });
     
     contacts.push(targetUser.id);
     currentUser.setContacts(contacts);
     await currentUser.save();
     
+    console.log('Contact added successfully. New contacts:', contacts);
     res.json({ message: 'Kişi eklendi', contacts: contacts });
   } catch (err) {
     console.error('addContactByEmail error:', err);
