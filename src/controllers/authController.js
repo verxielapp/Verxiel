@@ -36,41 +36,66 @@ function validateEmail(email) {
 
 exports.register = async (req, res) => {
   const { email, password, displayName, username } = req.body;
+  
+  console.log('=== REGISTER ATTEMPT ===');
+  console.log('Email:', email);
+  console.log('DisplayName:', displayName);
+  console.log('Username:', username);
+  console.log('Password length:', password ? password.length : 0);
+  
   try {
     // Gerekli alanları kontrol et
     if (!email || !password || !displayName || !username) {
+      console.log('Missing required fields');
       return res.status(400).json({ message: 'Tüm alanlar gereklidir!' });
     }
 
     // E-posta formatını kontrol et
-    if (!validateEmail(email)) return res.status(400).json({ message: 'Geçersiz e-posta formatı!' });
+    if (!validateEmail(email)) {
+      console.log('Invalid email format:', email);
+      return res.status(400).json({ message: 'Geçersiz e-posta formatı!' });
+    }
     
     // Şifre uzunluğunu kontrol et
     if (password.length < 6) {
+      console.log('Password too short');
       return res.status(400).json({ message: 'Şifre en az 6 karakter olmalıdır!' });
     }
 
     // Kullanıcı adı uzunluğunu kontrol et
     if (username.length < 3) {
+      console.log('Username too short');
       return res.status(400).json({ message: 'Kullanıcı adı en az 3 karakter olmalıdır!' });
     }
 
     // Kullanıcı adı formatını kontrol et
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      console.log('Invalid username format:', username);
       return res.status(400).json({ message: 'Kullanıcı adı sadece harf, rakam ve alt çizgi içerebilir!' });
     }
     
+    console.log('Checking for existing email...');
     const existing = await User.findOne({ where: { email } });
-    if (existing) return res.status(400).json({ message: 'Bu e-posta adresi zaten kullanılıyor!' });
+    if (existing) {
+      console.log('Email already exists:', email);
+      return res.status(400).json({ message: 'Bu e-posta adresi zaten kullanılıyor!' });
+    }
     
+    console.log('Checking for existing username...');
     const existingUsername = await User.findOne({ where: { username } });
-    if (existingUsername) return res.status(400).json({ message: 'Bu kullanıcı adı zaten kullanılıyor!' });
+    if (existingUsername) {
+      console.log('Username already exists:', username);
+      return res.status(400).json({ message: 'Bu kullanıcı adı zaten kullanılıyor!' });
+    }
     
+    console.log('Hashing password...');
     const passwordHash = await bcrypt.hash(password, 10);
     
     // Email doğrulama kodu oluştur
     const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log('Generated email code:', emailCode);
     
+    console.log('Creating user in database...');
     const user = await User.create({ 
       email, 
       passwordHash, 
@@ -80,10 +105,18 @@ exports.register = async (req, res) => {
       emailCode: emailCode 
     });
     
+    console.log('User created successfully:', {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      username: user.username,
+      verified: user.verified
+    });
+    
     // Email gönder
     try {
-      console.log('Email gönderiliyor:', email);
-      console.log('Email kodu:', emailCode);
+      console.log('Sending email to:', email);
+      console.log('Email code:', emailCode);
       
       const mailOptions = {
         from: '"Verxiel" <noreply@verxiel.app>',
@@ -112,6 +145,7 @@ exports.register = async (req, res) => {
       // Email gönderilemese bile kullanıcıyı oluştur
     }
     
+    console.log('=== REGISTER SUCCESS ===');
     res.status(201).json({ 
       message: 'Kayıt başarılı! Email adresinizi doğrulayın.', 
       user: { 
@@ -122,7 +156,8 @@ exports.register = async (req, res) => {
       } 
     });
   } catch (err) {
-    console.error('EMAIL ERROR:', err);
+    console.error('=== REGISTER ERROR ===');
+    console.error('Registration error:', err);
     res.status(500).json({ message: 'Registration failed', error: err.message });
   }
 };
