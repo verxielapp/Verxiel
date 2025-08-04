@@ -129,15 +129,39 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
+  
+  console.log('=== LOGIN ATTEMPT ===');
+  console.log('Email:', email);
+  console.log('Password length:', password ? password.length : 0);
+  
   try {
     const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(400).json({ message: 'E-posta veya şifre hatalı!' });
+    console.log('User found:', user ? 'YES' : 'NO');
+    
+    if (!user) {
+      console.log('User not found for email:', email);
+      return res.status(400).json({ message: 'E-posta veya şifre hatalı!' });
+    }
+    
+    console.log('User details:', {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      verified: user.verified,
+      createdAt: user.createdAt
+    });
     
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(400).json({ message: 'E-posta veya şifre hatalı!' });
+    console.log('Password valid:', valid);
+    
+    if (!valid) {
+      console.log('Invalid password for user:', email);
+      return res.status(400).json({ message: 'E-posta veya şifre hatalı!' });
+    }
     
     // Email doğrulama kontrolü
     if (!user.verified) {
+      console.log('User not verified:', email);
       return res.status(400).json({ 
         message: 'Email adresinizi doğrulamanız gerekiyor!', 
         needsVerification: true,
@@ -146,8 +170,20 @@ exports.login = async (req, res) => {
     }
     
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl, id: user.id } });
+    console.log('Token generated successfully');
+    console.log('=== LOGIN SUCCESS ===');
+    
+    res.json({ 
+      token, 
+      user: { 
+        email: user.email, 
+        displayName: user.displayName, 
+        avatarUrl: user.avatarUrl, 
+        id: user.id 
+      } 
+    });
   } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ message: 'Login failed', error: err.message });
   }
 };
