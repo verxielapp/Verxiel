@@ -45,6 +45,11 @@ module.exports = (io) => {
           receiverId = receiver._id;
         }
         
+        // Eğer to alanı ID ise, direkt kullan
+        if (data.to && !data.to.includes('@')) {
+          receiverId = data.to;
+        }
+        
         // Engellenen kullanıcıdan mesaj gelmesin
         if (receiverId) {
           const receiver = await User.findById(receiverId);
