@@ -21,6 +21,8 @@ module.exports = (io) => {
   });
 
   io.on('connection', (socket) => {
+    console.log('User connected:', socket.user.id);
+    
     // Odaya katılma
     socket.on('join', (roomId) => {
       socket.join(roomId);
@@ -28,44 +30,81 @@ module.exports = (io) => {
 
     // Mesaj gönderme
     socket.on('message', async (data) => {
-      // data: { to, content, type, groupId }
-      // Engellenen kullanıcıdan mesaj gelmesin
-      if (data.to) {
-        const receiver = await User.findById(data.to);
-        if (receiver && receiver.blocked.includes(socket.user.id)) {
-          return; // Engellenmişse mesajı iletme
+      console.log('Received message:', data);
+      try {
+        // data: { to, content, type, groupId, timestamp }
+        let receiverId = data.to;
+        
+        // Eğer to alanı email ise, kullanıcıyı bul
+        if (data.to && data.to.includes('@')) {
+          const receiver = await User.findOne({ email: data.to });
+          if (!receiver) {
+            console.log('Receiver not found for email:', data.to);
+            return;
+          }
+          receiverId = receiver._id;
         }
-      }
-      const msg = await Message.create({
-        from: socket.user.id,
-        to: data.to,
-        groupId: data.groupId,
-        content: data.content,
-        type: data.type || 'text'
-      });
-      const populatedMsg = await Message.findById(msg._id)
-        .populate('from', 'displayName email')
-        .populate('to', 'displayName email');
-      // Bireysel veya grup mesajı ise ilgili odaya yayınla
-      if (data.groupId) {
-        io.to(data.groupId).emit('message', populatedMsg);
-      } else if (data.to) {
-        io.to(data.to).emit('message', populatedMsg);
-        io.to(socket.user.id).emit('message', populatedMsg); // gönderen de alsın
-        // Otomatik kişi ekleme (her iki tarafa)
-        if (data.to) {
+        
+        // Engellenen kullanıcıdan mesaj gelmesin
+        if (receiverId) {
+          const receiver = await User.findById(receiverId);
+          if (receiver && receiver.blocked && receiver.blocked.includes(socket.user.id)) {
+            console.log('Message blocked by receiver');
+            return; // Engellenmişse mesajı iletme
+          }
+        }
+        
+        const msg = await Message.create({
+          from: socket.user.id,
+          to: receiverId,
+          groupId: data.groupId,
+          content: data.content,
+          type: data.type || 'text',
+          timestamp: data.timestamp || Date.now()
+        });
+        
+        const populatedMsg = await Message.findById(msg._id)
+          .populate('from', 'displayName email')
+          .populate('to', 'displayName email');
+        
+        console.log('Created message:', populatedMsg);
+        
+        // Bireysel veya grup mesajı ise ilgili odaya yayınla
+        if (data.groupId) {
+          io.to(data.groupId).emit('message', populatedMsg);
+        } else if (receiverId) {
+          // Alıcıya gönder
+          io.to(receiverId.toString()).emit('message', populatedMsg);
+          // Gönderene de gönder
+          io.to(socket.user.id.toString()).emit('message', populatedMsg);
+          
+          // Otomatik kişi ekleme (her iki tarafa)
           const sender = await User.findById(socket.user.id);
-          const receiver = await User.findById(data.to);
-          if (receiver && !receiver.contacts.includes(sender._id)) {
-            receiver.contacts.push(sender._id);
-            await receiver.save();
-          }
-          if (sender && !sender.contacts.includes(receiver._id)) {
-            sender.contacts.push(receiver._id);
-            await sender.save();
+          const receiver = await User.findById(receiverId);
+          
+          if (receiver && sender) {
+            // Alıcının contact listesine göndericiyi ekle
+            if (!receiver.contacts.includes(sender._id)) {
+              receiver.contacts.push(sender._id);
+              await receiver.save();
+              console.log('Added sender to receiver contacts');
+            }
+            
+            // Göndericinin contact listesine alıcıyı ekle
+            if (!sender.contacts.includes(receiver._id)) {
+              sender.contacts.push(receiver._id);
+              await sender.save();
+              console.log('Added receiver to sender contacts');
+            }
           }
         }
+      } catch (error) {
+        console.error('Error processing message:', error);
       }
+    });
+    
+    socket.on('disconnect', () => {
+      console.log('User disconnected:', socket.user.id);
     });
   });
 }; 
