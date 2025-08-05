@@ -37,12 +37,12 @@ module.exports = (io) => {
         
         // Eğer to alanı email ise, kullanıcıyı bul
         if (data.to && data.to.includes('@')) {
-          const receiver = await User.findOne({ email: data.to });
+          const receiver = await User.findOne({ where: { email: data.to } });
           if (!receiver) {
             console.log('Receiver not found for email:', data.to);
             return;
           }
-          receiverId = receiver._id;
+          receiverId = receiver.id;
         }
         
         // Eğer to alanı ID ise, direkt kullan
@@ -52,7 +52,7 @@ module.exports = (io) => {
         
         // Engellenen kullanıcıdan mesaj gelmesin
         if (receiverId) {
-          const receiver = await User.findById(receiverId);
+          const receiver = await User.findByPk(receiverId);
           if (receiver && receiver.blocked && receiver.blocked.includes(socket.user.id)) {
             console.log('Message blocked by receiver');
             return; // Engellenmişse mesajı iletme
@@ -60,17 +60,28 @@ module.exports = (io) => {
         }
         
         const msg = await Message.create({
-          from: socket.user.id,
-          to: receiverId,
+          fromId: socket.user.id,
+          toId: receiverId,
           groupId: data.groupId,
           content: data.content,
           type: data.type || 'text',
           timestamp: data.timestamp || Date.now()
         });
         
-        const populatedMsg = await Message.findById(msg._id)
-          .populate('from', 'displayName email')
-          .populate('to', 'displayName email');
+        const populatedMsg = await Message.findByPk(msg.id, {
+          include: [
+            {
+              model: User,
+              as: 'from',
+              attributes: ['id', 'displayName', 'email']
+            },
+            {
+              model: User,
+              as: 'to',
+              attributes: ['id', 'displayName', 'email']
+            }
+          ]
+        });
         
         console.log('Created message:', populatedMsg);
         
@@ -84,20 +95,20 @@ module.exports = (io) => {
           io.to(socket.user.id.toString()).emit('message', populatedMsg);
           
           // Otomatik kişi ekleme (her iki tarafa)
-          const sender = await User.findById(socket.user.id);
-          const receiver = await User.findById(receiverId);
+          const sender = await User.findByPk(socket.user.id);
+          const receiver = await User.findByPk(receiverId);
           
           if (receiver && sender) {
             // Alıcının contact listesine göndericiyi ekle
-            if (!receiver.contacts.includes(sender._id)) {
-              receiver.contacts.push(sender._id);
+            if (!receiver.contacts.includes(sender.id)) {
+              receiver.contacts.push(sender.id);
               await receiver.save();
               console.log('Added sender to receiver contacts');
             }
             
             // Göndericinin contact listesine alıcıyı ekle
-            if (!sender.contacts.includes(receiver._id)) {
-              sender.contacts.push(receiver._id);
+            if (!sender.contacts.includes(receiver.id)) {
+              sender.contacts.push(receiver.id);
               await sender.save();
               console.log('Added receiver to sender contacts');
             }

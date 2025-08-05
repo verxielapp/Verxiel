@@ -5,6 +5,10 @@ const http = require('http');
 const { Server } = require('socket.io');
 const chatSocket = require('./sockets/chat');
 const sequelize = require('./config/database');
+const dbSecurity = require('./utils/databaseSecurity');
+
+// Model ilişkilerini yükle
+require('./models/associations');
 
 const authRoutes = require('./routes/auth');
 const messageRoutes = require('./routes/message');
