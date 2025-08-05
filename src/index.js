@@ -6,9 +6,6 @@ const { Server } = require('socket.io');
 const chatSocket = require('./sockets/chat');
 const sequelize = require('./config/database');
 
-// Model ilişkilerini yükle
-require('./models/associations');
-
 const authRoutes = require('./routes/auth');
 const messageRoutes = require('./routes/message');
 const qrRoutes = require('./routes/qr');
@@ -109,53 +106,6 @@ app.get('/api/env-check', (req, res) => {
     CORS_ORIGIN: process.env.CORS_ORIGIN || 'DEFAULT',
     PORT: process.env.PORT || 10000
   });
-});
-
-// Test mesajları oluştur
-app.post('/api/test-messages', async (req, res) => {
-  try {
-    const Message = require('./models/Message');
-    const User = require('./models/User');
-    
-    // Test kullanıcıları oluştur
-    const user1 = await User.create({
-      email: 'test1@test.com',
-      passwordHash: 'test',
-      displayName: 'Test User 1',
-      username: 'testuser1'
-    });
-    
-    const user2 = await User.create({
-      email: 'test2@test.com',
-      passwordHash: 'test',
-      displayName: 'Test User 2',
-      username: 'testuser2'
-    });
-    
-    // Test mesajları oluştur
-    await Message.create({
-      fromId: user1.id,
-      toId: user2.id,
-      content: 'Merhaba! Bu bir test mesajıdır.',
-      timestamp: Date.now()
-    });
-    
-    await Message.create({
-      fromId: user2.id,
-      toId: user1.id,
-      content: 'Merhaba! Ben de test mesajı gönderiyorum.',
-      timestamp: Date.now()
-    });
-    
-    res.json({
-      message: 'Test messages created',
-      user1: user1.id,
-      user2: user2.id
-    });
-  } catch (error) {
-    console.error('Error creating test messages:', error);
-    res.status(500).json({ error: error.message });
-  }
 });
 
 const server = http.createServer(app);

@@ -13,31 +13,11 @@ const Message = sequelize.define('Message', {
   },
   fromId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'Users',
-      key: 'id'
-    }
+    allowNull: false
   },
   toId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'Users',
-      key: 'id'
-    }
-  },
-  groupId: {
-    type: DataTypes.INTEGER,
-    allowNull: true
-  },
-  type: {
-    type: DataTypes.STRING,
-    defaultValue: 'text'
-  },
-  timestamp: {
-    type: DataTypes.BIGINT,
-    defaultValue: () => Date.now()
+    allowNull: false
   },
   read: {
     type: DataTypes.BOOLEAN,
