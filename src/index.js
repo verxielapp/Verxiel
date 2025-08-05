@@ -11,7 +11,7 @@ const messageRoutes = require('./routes/message');
 const qrRoutes = require('./routes/qr');
 
 const app = express();
-const PORT = process.env.PORT || 8790;
+const PORT = process.env.PORT || 10000;
 
 const corsOptions = {
   origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [
@@ -104,7 +104,7 @@ app.get('/api/env-check', (req, res) => {
     EMAIL_USER: process.env.EMAIL_USER ? 'SET' : 'NOT SET',
     EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? 'SET' : 'NOT SET',
     CORS_ORIGIN: process.env.CORS_ORIGIN || 'DEFAULT',
-    PORT: process.env.PORT || 8790
+    PORT: process.env.PORT || 10000
   });
 });
 
