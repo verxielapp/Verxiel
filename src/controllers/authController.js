@@ -489,3 +489,32 @@ exports.deleteContact = async (req, res) => {
     res.status(500).json({ message: 'Kişi silinemedi', error: err.message });
   }
 }; 
+
+// Debug: Tüm kullanıcıları listele
+exports.listUsers = async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: ['id', 'email', 'displayName', 'verified', 'createdAt']
+    });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: 'Kullanıcılar alınamadı', error: err.message });
+  }
+};
+
+// Debug: Belirli email ile kullanıcı ara
+exports.findUserByEmail = async (req, res) => {
+  const { email } = req.params;
+  try {
+    const user = await User.findOne({ 
+      where: { email },
+      attributes: ['id', 'email', 'displayName', 'verified', 'createdAt']
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+    }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: 'Kullanıcı aranamadı', error: err.message });
+  }
+}; 

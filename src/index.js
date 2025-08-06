@@ -12,6 +12,7 @@ require('./models/associations');
 
 const authRoutes = require('./routes/auth');
 const messageRoutes = require('./routes/message');
+const friendRequestRoutes = require('./routes/friendRequest');
 const qrRoutes = require('./routes/qr');
 
 const app = express();
@@ -50,6 +51,7 @@ app.get('/api/health', (req, res) => {
 // Diğer route'lar
 app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/friend-requests', friendRequestRoutes);
 app.use('/api/qr', qrRoutes); // QR route'larını ayrı path'e taşı
 
 // Test endpoint'i - route'ların çalışıp çalışmadığını kontrol et
@@ -60,6 +62,53 @@ app.get('/api/test', (req, res) => {
     messageRoutes: !!messageRoutes,
     qrRoutes: !!qrRoutes
   });
+});
+
+// Test mesajları oluştur
+app.post('/api/test-messages', async (req, res) => {
+  try {
+    const Message = require('./models/Message');
+    const User = require('./models/User');
+    
+    // Test kullanıcıları oluştur
+    const user1 = await User.create({
+      email: 'test1@test.com',
+      passwordHash: 'test',
+      displayName: 'Test User 1',
+      username: 'testuser1'
+    });
+    
+    const user2 = await User.create({
+      email: 'test2@test.com',
+      passwordHash: 'test',
+      displayName: 'Test User 2',
+      username: 'testuser2'
+    });
+    
+    // Test mesajları oluştur
+    await Message.create({
+      fromId: user1.id,
+      toId: user2.id,
+      content: 'Merhaba! Bu bir test mesajıdır.',
+      timestamp: Date.now()
+    });
+    
+    await Message.create({
+      fromId: user2.id,
+      toId: user1.id,
+      content: 'Merhaba! Ben de test mesajı gönderiyorum.',
+      timestamp: Date.now()
+    });
+    
+    res.json({
+      message: 'Test messages created',
+      user1: user1.id,
+      user2: user2.id
+    });
+  } catch (error) {
+    console.error('Error creating test messages:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Token doğrulama test endpoint'i
@@ -108,8 +157,64 @@ app.get('/api/env-check', (req, res) => {
     EMAIL_USER: process.env.EMAIL_USER ? 'SET' : 'NOT SET',
     EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? 'SET' : 'NOT SET',
     CORS_ORIGIN: process.env.CORS_ORIGIN || 'DEFAULT',
-    PORT: process.env.PORT || 10000
+    PORT: process.env.PORT || 10000,
+    DB_ENCRYPTION_KEY: process.env.DB_ENCRYPTION_KEY ? 'SET' : 'NOT SET'
   });
+});
+
+// Database security status endpoint
+app.get('/api/db-security', (req, res) => {
+  const status = dbSecurity.getSecurityStatus();
+  res.json({
+    message: 'Database security status',
+    status: status,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Database backup endpoint (admin only)
+app.post('/api/db-backup', async (req, res) => {
+  try {
+    const backupPath = await dbSecurity.createBackup();
+    if (backupPath) {
+      res.json({
+        message: 'Database backup created successfully',
+        backupPath: backupPath,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({
+        message: 'Failed to create database backup',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Backup endpoint error:', error);
+    res.status(500).json({
+      message: 'Backup creation failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Database integrity check endpoint
+app.get('/api/db-integrity', async (req, res) => {
+  try {
+    const isValid = await dbSecurity.validateDatabaseIntegrity();
+    res.json({
+      message: 'Database integrity check',
+      isValid: isValid,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Integrity check error:', error);
+    res.status(500).json({
+      message: 'Integrity check failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 const server = http.createServer(app);
@@ -117,9 +222,33 @@ const io = new Server(server, { cors: { origin: '*' } });
 chatSocket(io);
 
 // SQLite database bağlantısı ve tablo oluşturma
-sequelize.sync({ force: false }).then(() => {
-  console.log('SQLite database connected and tables created');
-  server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+sequelize.sync({ force: false }).then(async () => {
+  console.log('✅ SQLite database connected and tables created');
+  
+  // Database security checks
+  const securityStatus = dbSecurity.getSecurityStatus();
+  console.log('🔐 Database security status:', securityStatus);
+  
+  // Validate database integrity
+  const isValid = await dbSecurity.validateDatabaseIntegrity();
+  if (!isValid) {
+    console.log('⚠️ Database integrity check failed');
+  }
+  
+  // Setup automatic backup (if enabled)
+  if (process.env.DB_BACKUP_ENABLED === 'true') {
+    setInterval(async () => {
+      await dbSecurity.createBackup();
+      await dbSecurity.cleanOldBackups();
+    }, parseInt(process.env.DB_BACKUP_INTERVAL) || 86400000); // Default: 24 hours
+    
+    console.log('💾 Automatic database backup enabled');
+  }
+  
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log('🛡️ Database encryption and security features active');
+  });
 }).catch(err => {
-  console.error('Database connection error:', err);
+  console.error('❌ Database connection error:', err);
 }); 

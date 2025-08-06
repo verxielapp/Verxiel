@@ -11,8 +11,9 @@ exports.getMessages = async (req, res) => {
       whereClause.groupId = groupId;
     } else if (to) {
       // Bireysel sohbet: iki kullanıcı arasında giden ve gelen tüm mesajlar
+      const { Op } = require('sequelize');
       whereClause = {
-        $or: [
+        [Op.or]: [
           { fromId: userId, toId: to },
           { fromId: to, toId: userId }
         ]
