@@ -23,22 +23,16 @@ const FriendRequest = sequelize.define('FriendRequest', {
       key: 'id'
     }
   },
-  status: {
-    type: DataTypes.ENUM('pending', 'accepted', 'rejected'),
-    defaultValue: 'pending'
-  },
   message: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  status: {
+    type: DataTypes.STRING, // 'pending', 'accepted', 'rejected', 'cancelled'
+    defaultValue: 'pending'
   }
 }, {
-  timestamps: true,
-  indexes: [
-    {
-      unique: true,
-      fields: ['senderId', 'receiverId']
-    }
-  ]
+  timestamps: true
 });
 
 module.exports = FriendRequest;

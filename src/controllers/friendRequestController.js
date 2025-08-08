@@ -100,10 +100,10 @@ exports.getSentRequests = async (req, res) => {
   }
 };
 
-// Arkadaşlık isteğini yanıtla (kabul et/reddet)
-exports.respondToRequest = async (req, res) => {
+// Arkadaşlık isteğini kabul et
+exports.acceptFriendRequest = async (req, res) => {
   try {
-    const { requestId, action } = req.body; // action: 'accept' | 'reject'
+    const { requestId } = req.params;
     const userId = req.user.id;
 
     const friendRequest = await FriendRequest.findOne({
@@ -121,54 +121,79 @@ exports.respondToRequest = async (req, res) => {
       return res.status(404).json({ message: 'Arkadaşlık isteği bulunamadı' });
     }
 
-    // İsteği güncelle
-    friendRequest.status = action === 'accept' ? 'accepted' : 'rejected';
+    // İsteği kabul et
+    friendRequest.status = 'accepted';
     await friendRequest.save();
 
-    // Eğer kabul edilmişse, karşılıklı arkadaşlık ilişkisi kur
-    if (action === 'accept') {
-      // Burada User modelinde contacts array'ini güncelleyebiliriz
-      // veya ayrı bir Friends tablosu oluşturabiliriz
-      const sender = await User.findByPk(friendRequest.senderId);
-      const receiver = await User.findByPk(userId);
+    // Karşılıklı arkadaşlık ilişkisi kur
+    const sender = await User.findByPk(friendRequest.senderId);
+    const receiver = await User.findByPk(userId);
 
-      // Contacts array'lerine ekle
-      if (sender.contacts) {
-        const senderContacts = JSON.parse(sender.contacts || '[]');
-        if (!senderContacts.some(c => c.id === receiver.id)) {
-          senderContacts.push({
-            id: receiver.id,
-            email: receiver.email,
-            displayName: receiver.displayName
-          });
-          sender.contacts = JSON.stringify(senderContacts);
-          await sender.save();
-        }
-      }
-
-      if (receiver.contacts) {
-        const receiverContacts = JSON.parse(receiver.contacts || '[]');
-        if (!receiverContacts.some(c => c.id === sender.id)) {
-          receiverContacts.push({
-            id: sender.id,
-            email: sender.email,
-            displayName: sender.displayName
-          });
-          receiver.contacts = JSON.stringify(receiverContacts);
-          await receiver.save();
-        }
+    // Contacts array'lerine ekle
+    if (sender.contacts) {
+      const senderContacts = JSON.parse(sender.contacts || '[]');
+      if (!senderContacts.some(c => c.id === receiver.id)) {
+        senderContacts.push({
+          id: receiver.id,
+          email: receiver.email,
+          displayName: receiver.displayName
+        });
+        sender.contacts = JSON.stringify(senderContacts);
+        await sender.save();
       }
     }
 
-    res.json({ message: action === 'accept' ? 'Arkadaşlık isteği kabul edildi' : 'Arkadaşlık isteği reddedildi', request: friendRequest });
+    if (receiver.contacts) {
+      const receiverContacts = JSON.parse(receiver.contacts || '[]');
+      if (!receiverContacts.some(c => c.id === sender.id)) {
+        receiverContacts.push({
+          id: sender.id,
+          email: sender.email,
+          displayName: sender.displayName
+        });
+        receiver.contacts = JSON.stringify(receiverContacts);
+        await receiver.save();
+      }
+    }
+
+    res.json({ message: 'Arkadaşlık isteği kabul edildi', request: friendRequest });
   } catch (error) {
-    console.error('Respond to request error:', error);
-    res.status(500).json({ message: 'İstek yanıtlanamadı', error: error.message });
+    console.error('Accept friend request error:', error);
+    res.status(500).json({ message: 'İstek kabul edilemedi', error: error.message });
+  }
+};
+
+// Arkadaşlık isteğini reddet
+exports.rejectFriendRequest = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const userId = req.user.id;
+
+    const friendRequest = await FriendRequest.findOne({
+      where: {
+        id: requestId,
+        receiverId: userId,
+        status: 'pending'
+      }
+    });
+
+    if (!friendRequest) {
+      return res.status(404).json({ message: 'Arkadaşlık isteği bulunamadı' });
+    }
+
+    // İsteği reddet
+    friendRequest.status = 'rejected';
+    await friendRequest.save();
+
+    res.json({ message: 'Arkadaşlık isteği reddedildi' });
+  } catch (error) {
+    console.error('Reject friend request error:', error);
+    res.status(500).json({ message: 'İstek reddedilemedi', error: error.message });
   }
 };
 
 // Arkadaşlık isteğini iptal et (gönderen tarafından)
-exports.cancelRequest = async (req, res) => {
+exports.cancelFriendRequest = async (req, res) => {
   try {
     const { requestId } = req.params;
     const userId = req.user.id;
