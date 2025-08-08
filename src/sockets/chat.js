@@ -64,6 +64,7 @@ module.exports = (io) => {
           toId: receiverId,
           groupId: data.groupId,
           content: data.content,
+          image: data.image,
           type: data.type || 'text',
           timestamp: data.timestamp || Date.now()
         });

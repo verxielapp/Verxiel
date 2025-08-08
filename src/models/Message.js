@@ -9,7 +9,11 @@ const Message = sequelize.define('Message', {
   },
   content: {
     type: DataTypes.TEXT,
-    allowNull: false
+    allowNull: true
+  },
+  image: {
+    type: DataTypes.TEXT,
+    allowNull: true
   },
   fromId: {
     type: DataTypes.INTEGER,
