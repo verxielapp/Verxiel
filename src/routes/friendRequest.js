@@ -1,21 +1,24 @@
 const express = require('express');
 const router = express.Router();
 const friendRequestController = require('../controllers/friendRequestController');
-const auth = require('../middleware/auth');
+const authMiddleware = require('../middleware/authMiddleware');
 
 // Arkadaşlık isteği gönder
-router.post('/send', auth, friendRequestController.sendFriendRequest);
+router.post('/send', authMiddleware, friendRequestController.sendFriendRequest);
 
 // Gelen arkadaşlık isteklerini listele
-router.get('/received', auth, friendRequestController.getReceivedRequests);
+router.get('/received', authMiddleware, friendRequestController.getReceivedRequests);
 
 // Gönderilen arkadaşlık isteklerini listele
-router.get('/sent', auth, friendRequestController.getSentRequests);
+router.get('/sent', authMiddleware, friendRequestController.getSentRequests);
 
-// Arkadaşlık isteğini yanıtla (kabul et/reddet)
-router.post('/respond', auth, friendRequestController.respondToRequest);
+// Arkadaşlık isteğini kabul et
+router.post('/:requestId/accept', authMiddleware, friendRequestController.acceptFriendRequest);
+
+// Arkadaşlık isteğini reddet
+router.post('/:requestId/reject', authMiddleware, friendRequestController.rejectFriendRequest);
 
 // Arkadaşlık isteğini iptal et
-router.delete('/:requestId', auth, friendRequestController.cancelRequest);
+router.post('/:requestId/cancel', authMiddleware, friendRequestController.cancelFriendRequest);
 
 module.exports = router;
