@@ -47,4 +47,7 @@ router.delete('/cleanup-test-users', async (req, res) => {
   }
 });
 
+// Test kullanıcısı oluştur
+router.post('/create-test-user', authController.createTestUser);
+
 module.exports = router; 

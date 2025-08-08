@@ -194,14 +194,15 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'E-posta veya şifre hatalı!' });
     }
     
-    // Email doğrulama kontrolü
+    // Email doğrulama kontrolü (geçici olarak devre dışı)
     if (!user.verified) {
-      console.log('User not verified:', email);
-      return res.status(400).json({ 
-        message: 'Email adresinizi doğrulamanız gerekiyor!', 
-        needsVerification: true,
-        email: user.email 
-      });
+      console.log('User not verified, but allowing login for testing:', email);
+      // Geçici olarak doğrulama kontrolünü atla
+      // return res.status(400).json({ 
+      //   message: 'Email adresinizi doğrulamanız gerekiyor!', 
+      //   needsVerification: true,
+      //   email: user.email 
+      // });
     }
     
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
@@ -388,14 +389,19 @@ exports.addContactByEmail = async (req, res) => {
 // Kişi listesini getir
 exports.getContacts = async (req, res) => {
   try {
+    console.log('Getting contacts for user ID:', req.user.id);
+    
     const user = await User.findByPk(req.user.id);
     if (!user) {
+      console.log('User not found');
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
     
     const contactIds = user.getContacts();
+    console.log('Contact IDs from user:', contactIds);
     
     if (contactIds.length === 0) {
+      console.log('No contacts found');
       return res.json([]);
     }
     
@@ -404,6 +410,7 @@ exports.getContacts = async (req, res) => {
       attributes: ['id', 'displayName', 'email', 'avatarUrl', 'username']
     });
     
+    console.log('Found contacts:', contacts.length);
     res.json(contacts);
   } catch (err) {
     console.error('getContacts error:', err);
@@ -516,5 +523,54 @@ exports.findUserByEmail = async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: 'Kullanıcı aranamadı', error: err.message });
+  }
+};
+
+// Test kullanıcısı oluştur
+exports.createTestUser = async (req, res) => {
+  try {
+    const testEmail = 'test@verxiel.com';
+    const testPassword = '123456';
+    const testDisplayName = 'Test User';
+    const testUsername = 'testuser';
+    
+    // Kullanıcı var mı kontrol et
+    const existingUser = await User.findOne({ where: { email: testEmail } });
+    if (existingUser) {
+      return res.json({ message: 'Test kullanıcısı zaten mevcut', user: existingUser });
+    }
+    
+    // Şifreyi hashle
+    const passwordHash = await bcrypt.hash(testPassword, 10);
+    
+    // Test kullanıcısı oluştur
+    const testUser = await User.create({
+      email: testEmail,
+      passwordHash: passwordHash,
+      displayName: testDisplayName,
+      username: testUsername,
+      verified: true, // Doğrulanmış olarak oluştur
+      contacts: '[]',
+      blocked: '[]'
+    });
+    
+    console.log('Test kullanıcısı oluşturuldu:', testUser.id);
+    res.json({ 
+      message: 'Test kullanıcısı oluşturuldu',
+      user: {
+        id: testUser.id,
+        email: testUser.email,
+        displayName: testUser.displayName,
+        username: testUser.username,
+        verified: testUser.verified
+      },
+      loginInfo: {
+        email: testEmail,
+        password: testPassword
+      }
+    });
+  } catch (err) {
+    console.error('Test user creation error:', err);
+    res.status(500).json({ message: 'Test kullanıcısı oluşturulamadı', error: err.message });
   }
 }; 
