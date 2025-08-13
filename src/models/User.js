@@ -39,39 +39,52 @@ const User = sequelize.define('User', {
   },
   contacts: {
     type: DataTypes.TEXT, // JSON string
-    defaultValue: '[]'
+    defaultValue: '[]',
+    get() {
+      try {
+        const contacts = JSON.parse(this.getDataValue('contacts') || '[]');
+        return Array.isArray(contacts) ? contacts : [];
+      } catch (error) {
+        console.error('Error parsing contacts:', error);
+        return [];
+      }
+    },
+    set(value) {
+      try {
+        const contactsArray = Array.isArray(value) ? value : [];
+        this.setDataValue('contacts', JSON.stringify(contactsArray));
+        console.log('Contacts set successfully:', contactsArray);
+      } catch (error) {
+        console.error('Error setting contacts:', error);
+        this.setDataValue('contacts', '[]');
+      }
+    }
   },
   blocked: {
     type: DataTypes.TEXT, // JSON string
-    defaultValue: '[]'
+    defaultValue: '[]',
+    get() {
+      try {
+        const blocked = JSON.parse(this.getDataValue('blocked') || '[]');
+        return Array.isArray(blocked) ? blocked : [];
+      } catch (error) {
+        console.error('Error parsing blocked:', error);
+        return [];
+      }
+    },
+    set(value) {
+      try {
+        const blockedArray = Array.isArray(value) ? value : [];
+        this.setDataValue('blocked', JSON.stringify(blockedArray));
+        console.log('Blocked set successfully:', blockedArray);
+      } catch (error) {
+        console.error('Error setting blocked:', error);
+        this.setDataValue('blocked', '[]');
+      }
+    }
   }
 }, {
   timestamps: true
 });
-
-// Helper methods
-User.prototype.getContacts = function() {
-  try {
-    return JSON.parse(this.contacts || '[]');
-  } catch {
-    return [];
-  }
-};
-
-User.prototype.setContacts = function(contacts) {
-  this.contacts = JSON.stringify(contacts);
-};
-
-User.prototype.getBlocked = function() {
-  try {
-    return JSON.parse(this.blocked || '[]');
-  } catch {
-    return [];
-  }
-};
-
-User.prototype.setBlocked = function(blocked) {
-  this.blocked = JSON.stringify(blocked);
-};
 
 module.exports = User; 

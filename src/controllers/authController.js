@@ -366,20 +366,55 @@ exports.addContactByEmail = async (req, res) => {
     }
     
     console.log('Target user found:', targetUser.id, targetUser.displayName);
+    console.log('Current user email:', currentUser.email);
+    console.log('Target user email:', targetUser.email);
     
-    if (targetUser.id === currentUser.id) return res.status(400).json({ message: 'Kendini ekleyemezsin' });
+    // Kendini ekleme kontrolü - email ile karşılaştır
+    if (targetUser.email === currentUser.email) {
+      console.log('User trying to add themselves');
+      return res.status(400).json({ message: 'Kendini ekleyemezsin' });
+    }
     
-    const contacts = currentUser.getContacts();
-    console.log('Current contacts:', contacts);
+    // Kendini ekleme kontrolü - ID ile karşılaştır
+    if (targetUser.id === currentUser.id) {
+      console.log('User trying to add themselves by ID');
+      return res.status(400).json({ message: 'Kendini ekleyemezsin' });
+    }
     
-    if (contacts.includes(targetUser.id)) return res.status(400).json({ message: 'Zaten ekli' });
+    const contacts = currentUser.contacts;
+    console.log('Current contacts before:', contacts);
     
+    if (contacts.includes(targetUser.id)) {
+      console.log('Contact already exists');
+      return res.status(400).json({ message: 'Bu kişi zaten listenizde' });
+    }
+    
+    // Yeni kişiyi ekle
     contacts.push(targetUser.id);
-    currentUser.setContacts(contacts);
+    currentUser.contacts = contacts;
     await currentUser.save();
     
     console.log('Contact added successfully. New contacts:', contacts);
-    res.json({ message: 'Kişi eklendi', contacts: contacts });
+    
+    // Güncellenmiş kişi listesini döndür
+    const updatedContacts = await User.findAll({
+      where: { id: contacts },
+      attributes: ['id', 'displayName', 'email', 'avatarUrl', 'username']
+    });
+    
+    console.log('Updated contacts data:', updatedContacts);
+    
+    res.json({ 
+      message: 'Kişi eklendi', 
+      contacts: updatedContacts,
+      addedContact: {
+        id: targetUser.id,
+        displayName: targetUser.displayName,
+        email: targetUser.email,
+        avatarUrl: targetUser.avatarUrl,
+        username: targetUser.username
+      }
+    });
   } catch (err) {
     console.error('addContactByEmail error:', err);
     res.status(500).json({ message: 'Kişi eklenemedi', error: err.message });
@@ -397,7 +432,7 @@ exports.getContacts = async (req, res) => {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
     }
     
-    const contactIds = user.getContacts();
+    const contactIds = user.contacts;
     console.log('Contact IDs from user:', contactIds);
     
     if (contactIds.length === 0) {
@@ -405,12 +440,18 @@ exports.getContacts = async (req, res) => {
       return res.json([]);
     }
     
+    // Kişi ID'lerini integer'a çevir
+    const cleanContactIds = contactIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+    console.log('Clean contact IDs:', cleanContactIds);
+    
     const contacts = await User.findAll({
-      where: { id: contactIds },
+      where: { id: cleanContactIds },
       attributes: ['id', 'displayName', 'email', 'avatarUrl', 'username']
     });
     
     console.log('Found contacts:', contacts.length);
+    console.log('Contacts data:', contacts.map(c => ({ id: c.id, email: c.email, displayName: c.displayName })));
+    
     res.json(contacts);
   } catch (err) {
     console.error('getContacts error:', err);
