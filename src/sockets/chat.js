@@ -98,59 +98,214 @@ module.exports = (io) => {
           io.to(receiverId.toString()).emit('message', populatedMsg);
           // Gönderene de gönder
           io.to(socket.user.id.toString()).emit('message', populatedMsg);
-          
-          // Otomatik kişi ekleme (her iki tarafa)
+        }
+        
+        // Kişi listelerini güncelle
+        try {
           const sender = await User.findByPk(socket.user.id);
           const receiver = await User.findByPk(receiverId);
           
-          if (receiver && sender) {
-            let contactsUpdated = false;
-            
-            // Alıcının contact listesine göndericiyi ekle
-            const receiverContacts = receiver.contacts;
-            if (!receiverContacts.includes(sender.id)) {
-              receiverContacts.push(sender.id);
-              receiver.contacts = receiverContacts;
-              await receiver.save();
-              console.log('Added sender to receiver contacts');
-              contactsUpdated = true;
-            }
-            
-            // Göndericinin contact listesine alıcıyı ekle
-            const senderContacts = sender.contacts;
+          if (sender && receiver) {
+            // Gönderenin kişi listesini güncelle
+            let senderContacts = sender.contacts || [];
             if (!senderContacts.includes(receiver.id)) {
               senderContacts.push(receiver.id);
               sender.contacts = senderContacts;
               await sender.save();
-              console.log('Added receiver to sender contacts');
-              contactsUpdated = true;
             }
             
-            // Eğer contacts güncellendiyse, her iki tarafa da yeni contact listesini gönder
-            if (contactsUpdated) {
-              // Göndericiye güncellenmiş contact listesini gönder
-              const updatedSenderContacts = await User.findAll({
-                where: { id: senderContacts },
-                attributes: ['id', 'displayName', 'email', 'avatarUrl', 'username']
-              });
-              io.to(socket.user.id.toString()).emit('contacts_updated', updatedSenderContacts);
-              
-              // Alıcıya güncellenmiş contact listesini gönder
-              const updatedReceiverContacts = await User.findAll({
-                where: { id: receiverContacts },
-                attributes: ['id', 'displayName', 'email', 'avatarUrl', 'username']
-              });
-              io.to(receiverId.toString()).emit('contacts_updated', updatedReceiverContacts);
+            // Alıcının kişi listesini güncelle
+            let receiverContacts = receiver.contacts || [];
+            if (!receiverContacts.includes(sender.id)) {
+              receiverContacts.push(sender.id);
+              receiver.contacts = receiverContacts;
+              await receiver.save();
             }
+            
+            // Her iki tarafa da güncellenmiş kişi listelerini gönder
+            io.to(socket.user.id.toString()).emit('contacts_updated', senderContacts);
+            io.to(receiverId.toString()).emit('contacts_updated', receiverContacts);
           }
+        } catch (error) {
+          console.error('Error updating contacts:', error);
         }
+        
       } catch (error) {
-        console.error('Error processing message:', error);
-        // Hata durumunda göndericiye bilgi ver
-        socket.emit('message_error', { error: 'Mesaj gönderilemedi' });
+        console.error('Message creation error:', error);
+        socket.emit('message_error', { message: 'Mesaj gönderilemedi' });
       }
     });
     
+    // VOIP Event'leri
+    socket.on('call_offer', async (data) => {
+      console.log('Call offer received:', data);
+      try {
+        const { to, type, offer } = data;
+        const sender = await User.findByPk(socket.user.id);
+        
+        // Alıcıya arama teklifini gönder
+        io.to(to.toString()).emit('call_offer', {
+          from: {
+            id: sender.id,
+            displayName: sender.displayName,
+            username: sender.username,
+            email: sender.email
+          },
+          type: type,
+          offer: offer
+        });
+        
+      } catch (error) {
+        console.error('Call offer error:', error);
+        socket.emit('call_error', { message: 'Arama başlatılamadı' });
+      }
+    });
+    
+    socket.on('call_answer', async (data) => {
+      console.log('Call answer received:', data);
+      try {
+        const { to, answer } = data;
+        
+        // Arayan tarafa cevabı gönder
+        io.to(to.toString()).emit('call_answer', {
+          answer: answer
+        });
+        
+      } catch (error) {
+        console.error('Call answer error:', error);
+        socket.emit('call_error', { message: 'Arama cevabı gönderilemedi' });
+      }
+    });
+    
+    socket.on('call_reject', async (data) => {
+      console.log('Call reject received:', data);
+      try {
+        const { to } = data;
+        
+        // Arayan tarafa reddetme bilgisini gönder
+        io.to(to.toString()).emit('call_reject', {});
+        
+      } catch (error) {
+        console.error('Call reject error:', error);
+        socket.emit('call_error', { message: 'Arama reddedilemedi' });
+      }
+    });
+    
+    socket.on('call_end', async (data) => {
+      console.log('Call end received:', data);
+      try {
+        const { to } = data;
+        
+        // Karşı tarafa arama sonlandırma bilgisini gönder
+        io.to(to.toString()).emit('call_end', {});
+        
+      } catch (error) {
+        console.error('Call end error:', error);
+        socket.emit('call_error', { message: 'Arama sonlandırılamadı' });
+      }
+    });
+    
+    socket.on('ice_candidate', async (data) => {
+      console.log('ICE candidate received:', data);
+      try {
+        const { to, candidate } = data;
+        
+        // Karşı tarafa ICE candidate'ı gönder
+        io.to(to.toString()).emit('ice_candidate', {
+          candidate: candidate
+        });
+        
+      } catch (error) {
+        console.error('ICE candidate error:', error);
+        socket.emit('call_error', { message: 'ICE candidate gönderilemedi' });
+      }
+    });
+    
+    // Güvenli VOIP Event'leri
+    socket.on('key_exchange_init', async (data) => {
+      console.log('Key exchange init received:', data);
+      try {
+        const { to, publicKey, sessionKey } = data;
+        const sender = await User.findByPk(socket.user.id);
+        
+        // Alıcıya key exchange response gönder
+        io.to(to.toString()).emit('key_exchange_response', {
+          from: {
+            id: sender.id,
+            displayName: sender.displayName,
+            username: sender.username,
+            email: sender.email
+          },
+          publicKey: publicKey,
+          sessionKey: sessionKey
+        });
+        
+      } catch (error) {
+        console.error('Key exchange init error:', error);
+        socket.emit('call_error', { message: 'Key exchange başlatılamadı' });
+      }
+    });
+    
+    socket.on('secure_call_offer', async (data) => {
+      console.log('Secure call offer received:', data);
+      try {
+        const { to, type, offer, sessionId } = data;
+        const sender = await User.findByPk(socket.user.id);
+        
+        // Alıcıya güvenli arama teklifini gönder
+        io.to(to.toString()).emit('secure_call_offer', {
+          from: {
+            id: sender.id,
+            displayName: sender.displayName,
+            username: sender.username,
+            email: sender.email
+          },
+          type: type,
+          offer: offer,
+          sessionId: sessionId
+        });
+        
+      } catch (error) {
+        console.error('Secure call offer error:', error);
+        socket.emit('call_error', { message: 'Güvenli arama başlatılamadı' });
+      }
+    });
+    
+    socket.on('secure_call_answer', async (data) => {
+      console.log('Secure call answer received:', data);
+      try {
+        const { to, answer, sessionId } = data;
+        
+        // Arayan tarafa güvenli cevabı gönder
+        io.to(to.toString()).emit('secure_call_answer', {
+          answer: answer,
+          sessionId: sessionId
+        });
+        
+      } catch (error) {
+        console.error('Secure call answer error:', error);
+        socket.emit('call_error', { message: 'Güvenli arama cevabı gönderilemedi' });
+      }
+    });
+    
+    socket.on('secure_ice_candidate', async (data) => {
+      console.log('Secure ICE candidate received:', data);
+      try {
+        const { to, candidate, sessionId } = data;
+        
+        // Karşı tarafa şifrelenmiş ICE candidate'ı gönder
+        io.to(to.toString()).emit('secure_ice_candidate', {
+          candidate: candidate,
+          sessionId: sessionId
+        });
+        
+      } catch (error) {
+        console.error('Secure ICE candidate error:', error);
+        socket.emit('call_error', { message: 'Şifrelenmiş ICE candidate gönderilemedi' });
+      }
+    });
+    
+    // Bağlantı kesildiğinde
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.user.id);
     });
