@@ -18,6 +18,22 @@ const qrRoutes = require('./routes/qr');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// Database synchronization - create tables if they don't exist
+const sequelize = require('./config/database');
+const User = require('./models/User');
+const Message = require('./models/Message');
+const FriendRequest = require('./models/FriendRequest');
+
+// Sync database models
+sequelize.sync({ alter: true })
+  .then(() => {
+    console.log('✅ Database tables synchronized successfully');
+    console.log('📊 Tables created/updated: User, Message, FriendRequest');
+  })
+  .catch(err => {
+    console.error('❌ Database sync error:', err);
+  });
+
 const corsOptions = {
   origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [
     'http://localhost:3000',
@@ -60,8 +76,29 @@ app.get('/api/test', (req, res) => {
     message: 'API routes are working',
     authRoutes: !!authRoutes,
     messageRoutes: !!messageRoutes,
-    qrRoutes: !!qrRoutes
+    qrRoutes: !!qrRoutes,
+    database: 'Connected',
+    timestamp: new Date().toISOString()
   });
+});
+
+// Database health check endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.json({ 
+      status: 'healthy',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'unhealthy',
+      database: 'disconnected',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Test mesajları oluştur

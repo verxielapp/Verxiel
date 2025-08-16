@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: verxiel-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_ENCRYPTION_KEY
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://verxiel.netlify.app,https://verxiel.onrender.com
+    autoDeploy: true
+    healthCheckPath: /api/test
+
+databases:
+  - name: verxiel-db
+    databaseName: verxiel
+    user: verxiel_user
+    plan: free
+    ipAllowList: []
