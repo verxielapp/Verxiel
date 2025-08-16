@@ -5,6 +5,12 @@ require('dotenv').config();
 const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 const DB_ENCRYPTION_KEY = process.env.DB_ENCRYPTION_KEY || 'verxiel_secure_key_2024_very_long_and_secure_key_for_encryption';
 
+// Log environment variables for debugging
+console.log('🔍 Environment check:');
+console.log('DATABASE_URL exists:', !!DATABASE_URL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+
 let sequelize;
 
 if (DATABASE_URL) {

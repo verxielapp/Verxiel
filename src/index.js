@@ -24,13 +24,21 @@ const Message = require('./models/Message');
 const FriendRequest = require('./models/FriendRequest');
 
 // Sync database models
-sequelize.sync({ alter: true })
+sequelize.sync({ force: false, alter: false })
   .then(() => {
     console.log('✅ Database tables synchronized successfully');
     console.log('📊 Tables created/updated: User, Message, FriendRequest');
   })
   .catch(err => {
     console.error('❌ Database sync error:', err);
+    console.log('🔄 Trying to sync with alter mode...');
+    return sequelize.sync({ alter: true });
+  })
+  .then(() => {
+    console.log('✅ Database sync completed');
+  })
+  .catch(err => {
+    console.error('❌ Final database sync error:', err);
   });
 
 const corsOptions = {

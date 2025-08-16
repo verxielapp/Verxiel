@@ -36,7 +36,8 @@ const FriendRequest = sequelize.define('FriendRequest', {
   indexes: [
     {
       unique: true,
-      fields: ['senderId', 'receiverId']
+      fields: ['senderId', 'receiverId'],
+      name: 'friend_request_unique_sender_receiver'
     }
   ]
 });
