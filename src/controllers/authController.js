@@ -194,15 +194,14 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'E-posta veya şifre hatalı!' });
     }
     
-    // Email doğrulama kontrolü (geçici olarak devre dışı)
+    // Email doğrulama kontrolü
     if (!user.verified) {
-      console.log('User not verified, but allowing login for testing:', email);
-      // Geçici olarak doğrulama kontrolünü atla
-      // return res.status(400).json({ 
-      //   message: 'Email adresinizi doğrulamanız gerekiyor!', 
-      //   needsVerification: true,
-      //   email: user.email 
-      // });
+      console.log('User not verified:', email);
+      return res.status(400).json({ 
+        message: 'Email adresinizi doğrulamanız gerekiyor!', 
+        needsVerification: true,
+        email: user.email 
+      });
     }
     
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
