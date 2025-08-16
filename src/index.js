@@ -19,7 +19,6 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 
 // Database synchronization - create tables if they don't exist
-const sequelize = require('./config/database');
 const User = require('./models/User');
 const Message = require('./models/Message');
 const FriendRequest = require('./models/FriendRequest');
@@ -50,16 +49,6 @@ app.get('/', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     message: 'Verxiel Server is running',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Health check endpoint - en üstte olmalı
-app.get('/api/health', (req, res) => {
-  console.log('Health check requested');
-  res.status(200).json({ 
-    status: 'OK', 
-    message: 'Server is running',
     timestamp: new Date().toISOString()
   });
 });
