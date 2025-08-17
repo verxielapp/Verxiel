@@ -27,18 +27,36 @@ const FriendRequest = require('./models/FriendRequest');
 const syncDatabase = async () => {
   try {
     console.log('🔄 Starting database sync...');
-    await sequelize.sync({ force: true }); // Force create tables
+    
+    // First, try to authenticate the connection
+    await sequelize.authenticate();
+    console.log('✅ Database connection verified');
+    
+    // Then sync with force to create tables
+    await sequelize.sync({ force: true });
     console.log('✅ Database tables created successfully');
     console.log('📊 Tables created: User, Message, FriendRequest');
+    
   } catch (err) {
     console.error('❌ Database sync error:', err.message);
-    console.log('🔄 Trying to sync with alter mode...');
+    console.log('🔄 Trying alternative sync methods...');
+    
     try {
+      // Try alter mode
       await sequelize.sync({ alter: true });
       console.log('✅ Database sync completed with alter mode');
     } catch (alterErr) {
-      console.error('❌ Alter sync also failed:', alterErr.message);
-      console.log('⚠️ Continuing without database sync...');
+      console.error('❌ Alter sync failed:', alterErr.message);
+      
+      try {
+        // Try safe mode
+        await sequelize.sync({ force: false, alter: false });
+        console.log('✅ Database sync completed with safe mode');
+      } catch (safeErr) {
+        console.error('❌ Safe sync failed:', safeErr.message);
+        console.log('⚠️ Continuing without database sync...');
+        console.log('💡 Tables may need to be created manually');
+      }
     }
   }
 };
