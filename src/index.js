@@ -27,9 +27,9 @@ const FriendRequest = require('./models/FriendRequest');
 const syncDatabase = async () => {
   try {
     console.log('🔄 Starting database sync...');
-    await sequelize.sync({ force: false, alter: false });
-    console.log('✅ Database tables synchronized successfully');
-    console.log('📊 Tables created/updated: User, Message, FriendRequest');
+    await sequelize.sync({ force: true }); // Force create tables
+    console.log('✅ Database tables created successfully');
+    console.log('📊 Tables created: User, Message, FriendRequest');
   } catch (err) {
     console.error('❌ Database sync error:', err.message);
     console.log('🔄 Trying to sync with alter mode...');
