@@ -23,23 +23,27 @@ const User = require('./models/User');
 const Message = require('./models/Message');
 const FriendRequest = require('./models/FriendRequest');
 
-// Sync database models
-sequelize.sync({ force: false, alter: false })
-  .then(() => {
+// Sync database models with error handling
+const syncDatabase = async () => {
+  try {
+    console.log('🔄 Starting database sync...');
+    await sequelize.sync({ force: false, alter: false });
     console.log('✅ Database tables synchronized successfully');
     console.log('📊 Tables created/updated: User, Message, FriendRequest');
-  })
-  .catch(err => {
-    console.error('❌ Database sync error:', err);
+  } catch (err) {
+    console.error('❌ Database sync error:', err.message);
     console.log('🔄 Trying to sync with alter mode...');
-    return sequelize.sync({ alter: true });
-  })
-  .then(() => {
-    console.log('✅ Database sync completed');
-  })
-  .catch(err => {
-    console.error('❌ Final database sync error:', err);
-  });
+    try {
+      await sequelize.sync({ alter: true });
+      console.log('✅ Database sync completed with alter mode');
+    } catch (alterErr) {
+      console.error('❌ Alter sync also failed:', alterErr.message);
+      console.log('⚠️ Continuing without database sync...');
+    }
+  }
+};
+
+syncDatabase();
 
 const corsOptions = {
   origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [
@@ -255,34 +259,38 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 chatSocket(io);
 
-// SQLite database bağlantısı ve tablo oluşturma
-sequelize.sync({ force: false }).then(async () => {
-  console.log('✅ SQLite database connected and tables created');
-  
-  // Database security checks
-  const securityStatus = dbSecurity.getSecurityStatus();
-  console.log('🔐 Database security status:', securityStatus);
-  
-  // Validate database integrity
-  const isValid = await dbSecurity.validateDatabaseIntegrity();
-  if (!isValid) {
-    console.log('⚠️ Database integrity check failed');
-  }
-  
-  // Setup automatic backup (if enabled)
-  if (process.env.DB_BACKUP_ENABLED === 'true') {
-    setInterval(async () => {
-      await dbSecurity.createBackup();
-      await dbSecurity.cleanOldBackups();
-    }, parseInt(process.env.DB_BACKUP_INTERVAL) || 86400000); // Default: 24 hours
+// Start server immediately after database sync
+const startServer = async () => {
+  try {
+    // Database security checks
+    const securityStatus = dbSecurity.getSecurityStatus();
+    console.log('🔐 Database security status:', securityStatus);
     
-    console.log('💾 Automatic database backup enabled');
+    // Validate database integrity
+    const isValid = await dbSecurity.validateDatabaseIntegrity();
+    if (!isValid) {
+      console.log('⚠️ Database integrity check failed');
+    }
+    
+    // Setup automatic backup (if enabled)
+    if (process.env.DB_BACKUP_ENABLED === 'true') {
+      setInterval(async () => {
+        await dbSecurity.createBackup();
+        await dbSecurity.cleanOldBackups();
+      }, parseInt(process.env.DB_BACKUP_INTERVAL) || 86400000); // Default: 24 hours
+      
+      console.log('💾 Automatic database backup enabled');
+    }
+    
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log('🛡️ Database encryption and security features active');
+    });
+  } catch (err) {
+    console.error('❌ Server startup error:', err);
+    process.exit(1);
   }
-  
-  server.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log('🛡️ Database encryption and security features active');
-  });
-}).catch(err => {
-  console.error('❌ Database connection error:', err);
-}); 
+};
+
+// Start server after a short delay to ensure database sync completes
+setTimeout(startServer, 2000); 

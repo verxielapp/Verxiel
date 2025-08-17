@@ -32,14 +32,7 @@ const FriendRequest = sequelize.define('FriendRequest', {
     allowNull: true
   }
 }, {
-  timestamps: true,
-  indexes: [
-    {
-      unique: true,
-      fields: ['senderId', 'receiverId'],
-      name: 'friend_request_unique_sender_receiver'
-    }
-  ]
+  timestamps: true
 });
 
 module.exports = FriendRequest;
