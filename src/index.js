@@ -32,32 +32,62 @@ const syncDatabase = async () => {
     await sequelize.authenticate();
     console.log('✅ Database connection verified');
     
-    // Then sync with force to create tables
-    await sequelize.sync({ force: true });
-    console.log('✅ Database tables created successfully');
-    console.log('📊 Tables created: User, Message, FriendRequest');
+    // Create tables manually using raw SQL
+    console.log('🔨 Creating tables manually...');
+    
+    // Create Users table
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS "Users" (
+        "id" SERIAL PRIMARY KEY,
+        "email" VARCHAR(255) UNIQUE NOT NULL,
+        "passwordHash" VARCHAR(255) NOT NULL,
+        "displayName" VARCHAR(255) NOT NULL,
+        "username" VARCHAR(255) UNIQUE NOT NULL,
+        "avatarUrl" VARCHAR(255) DEFAULT '',
+        "verified" BOOLEAN DEFAULT false,
+        "emailCode" VARCHAR(255),
+        "contacts" TEXT DEFAULT '[]',
+        "blocked" TEXT DEFAULT '[]',
+        "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
+        "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL
+      );
+    `);
+    console.log('✅ Users table created');
+    
+    // Create Messages table
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS "Messages" (
+        "id" SERIAL PRIMARY KEY,
+        "content" TEXT NOT NULL,
+        "fromId" INTEGER REFERENCES "Users"("id"),
+        "toId" INTEGER REFERENCES "Users"("id"),
+        "image" TEXT,
+        "type" VARCHAR(50) DEFAULT 'text',
+        "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
+        "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL
+      );
+    `);
+    console.log('✅ Messages table created');
+    
+    // Create FriendRequests table
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS "FriendRequests" (
+        "id" SERIAL PRIMARY KEY,
+        "senderId" INTEGER REFERENCES "Users"("id"),
+        "receiverId" INTEGER REFERENCES "Users"("id"),
+        "status" VARCHAR(50) DEFAULT 'pending',
+        "message" TEXT,
+        "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
+        "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL
+      );
+    `);
+    console.log('✅ FriendRequests table created');
+    
+    console.log('✅ All tables created successfully');
     
   } catch (err) {
     console.error('❌ Database sync error:', err.message);
-    console.log('🔄 Trying alternative sync methods...');
-    
-    try {
-      // Try alter mode
-      await sequelize.sync({ alter: true });
-      console.log('✅ Database sync completed with alter mode');
-    } catch (alterErr) {
-      console.error('❌ Alter sync failed:', alterErr.message);
-      
-      try {
-        // Try safe mode
-        await sequelize.sync({ force: false, alter: false });
-        console.log('✅ Database sync completed with safe mode');
-      } catch (safeErr) {
-        console.error('❌ Safe sync failed:', safeErr.message);
-        console.log('⚠️ Continuing without database sync...');
-        console.log('💡 Tables may need to be created manually');
-      }
-    }
+    console.log('⚠️ Continuing without database sync...');
   }
 };
 
