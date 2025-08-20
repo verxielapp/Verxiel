@@ -34,6 +34,46 @@ function validateEmail(email) {
   return re.test(email);
 }
 
+// Güvenli şifre kontrolü
+function validatePassword(password) {
+  const minLength = 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  
+  if (password.length < minLength) {
+    return { valid: false, message: 'Şifre en az 8 karakter olmalıdır!' };
+  }
+  if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+    return { valid: false, message: 'Şifre en az 1 büyük harf, 1 küçük harf ve 1 rakam içermelidir!' };
+  }
+  if (!hasSpecialChar) {
+    return { valid: false, message: 'Şifre en az 1 özel karakter içermelidir!' };
+  }
+  
+  return { valid: true };
+}
+
+// Güvenli kullanıcı adı kontrolü
+function validateUsername(username) {
+  const minLength = 4;
+  const validFormat = /^[a-zA-Z0-9_]+$/.test(username);
+  const profanityList = ['admin', 'root', 'system', 'test', 'user', 'guest'];
+  
+  if (username.length < minLength) {
+    return { valid: false, message: 'Kullanıcı adı en az 4 karakter olmalıdır!' };
+  }
+  if (!validFormat) {
+    return { valid: false, message: 'Kullanıcı adı sadece harf, rakam ve alt çizgi içerebilir!' };
+  }
+  if (profanityList.includes(username.toLowerCase())) {
+    return { valid: false, message: 'Bu kullanıcı adı kullanılamaz!' };
+  }
+  
+  return { valid: true };
+}
+
 exports.register = async (req, res) => {
   const { email, password, displayName, username } = req.body;
   
@@ -44,6 +84,19 @@ exports.register = async (req, res) => {
   console.log('Password length:', password ? password.length : 0);
   
   try {
+    // Güvenlik kontrolleri
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      console.log('Password validation failed:', passwordValidation.message);
+      return res.status(400).json({ message: passwordValidation.message });
+    }
+    
+    const usernameValidation = validateUsername(username);
+    if (!usernameValidation.valid) {
+      console.log('Username validation failed:', usernameValidation.message);
+      return res.status(400).json({ message: usernameValidation.message });
+    }
+
     // Gerekli alanları kontrol et
     if (!email || !password || !displayName || !username) {
       console.log('Missing required fields');
@@ -57,15 +110,15 @@ exports.register = async (req, res) => {
     }
     
     // Şifre uzunluğunu kontrol et
-    if (password.length < 6) {
+    if (password.length < 8) {
       console.log('Password too short');
-      return res.status(400).json({ message: 'Şifre en az 6 karakter olmalıdır!' });
+      return res.status(400).json({ message: 'Şifre en az 8 karakter olmalıdır!' });
     }
 
     // Kullanıcı adı uzunluğunu kontrol et
-    if (username.length < 3) {
+    if (username.length < 4) {
       console.log('Username too short');
-      return res.status(400).json({ message: 'Kullanıcı adı en az 3 karakter olmalıdır!' });
+      return res.status(400).json({ message: 'Kullanıcı adı en az 4 karakter olmalıdır!' });
     }
 
     // Kullanıcı adı formatını kontrol et
@@ -226,30 +279,35 @@ exports.login = async (req, res) => {
 // E-posta doğrulama
 exports.verifyEmail = async (req, res) => {
   const { email, code } = req.body;
+  
   try {
     const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
-    if (user.verified) return res.status(400).json({ message: 'Zaten doğrulanmış' });
-    if (user.emailCode !== code) return res.status(400).json({ message: 'Kod yanlış' });
+    if (!user) {
+      return res.status(400).json({ message: 'Kullanıcı bulunamadı!' });
+    }
     
-    user.verified = true;
-    user.emailCode = null;
-    await user.save();
+    if (user.verified) {
+      return res.status(400).json({ message: 'Email zaten doğrulanmış!' });
+    }
     
-    // Doğrulama başarılı, token oluştur ve döndür
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ 
-      message: 'E-posta doğrulandı',
-      token: token,
-      user: { 
-        email: user.email, 
-        displayName: user.displayName, 
-        avatarUrl: user.avatarUrl, 
-        id: user.id 
-      }
+    if (user.emailCode !== code) {
+      return res.status(400).json({ message: 'Geçersiz doğrulama kodu!' });
+    }
+    
+    // Email doğrulandı, kullanıcıyı güncelle
+    await user.update({ 
+      verified: true, 
+      emailCode: null 
     });
+    
+    res.json({ 
+      message: 'Email başarıyla doğrulandı! Şimdi giriş yapabilirsiniz.',
+      verified: true
+    });
+    
   } catch (err) {
-    res.status(500).json({ message: 'Doğrulama başarısız', error: err.message });
+    console.error('Email verification error:', err);
+    res.status(500).json({ message: 'Doğrulama başarısız!', error: err.message });
   }
 };
 
