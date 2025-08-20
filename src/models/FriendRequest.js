@@ -32,6 +32,7 @@ const FriendRequest = sequelize.define('FriendRequest', {
     allowNull: true
   }
 }, {
+  tableName: 'FriendRequests', // Tablo adını FriendRequests olarak belirt
   timestamps: true
 });
 

@@ -84,6 +84,7 @@ const User = sequelize.define('User', {
     }
   }
 }, {
+  tableName: 'Users', // Tablo adını Users olarak belirt
   timestamps: true
 });
 

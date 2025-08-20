@@ -48,6 +48,7 @@ const Message = sequelize.define('Message', {
     defaultValue: false
   }
 }, {
+  tableName: 'Messages', // Tablo adını Messages olarak belirt
   timestamps: true
 });
 
