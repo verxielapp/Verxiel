@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const auth = require('../middleware/authMiddleware');
+const requireAdmin = require('../middleware/requireAdmin');
 const adminController = require('../controllers/adminController');
 
 router.post('/register', authController.register);
@@ -19,8 +20,8 @@ router.post('/unblock', auth, authController.unblockUser);
 router.post('/delete-contact', auth, authController.deleteContact);
 
 // Admin moderation routes
-router.post('/admin/ban', auth, auth.requireAdmin, adminController.banUser);
-router.post('/admin/unban', auth, auth.requireAdmin, adminController.unbanUser);
+router.post('/admin/ban', auth, requireAdmin, adminController.banUser);
+router.post('/admin/unban', auth, requireAdmin, adminController.unbanUser);
 
 // Test endpoint - kullanıcıları listele
 router.get('/users', async (req, res) => {
