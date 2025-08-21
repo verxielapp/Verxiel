@@ -1,27 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const authMiddleware = require('../middleware/authMiddleware');
-const { requireAdmin } = require('../middleware/authMiddleware');
+const auth = require('../middleware/authMiddleware');
 const adminController = require('../controllers/adminController');
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/verify-email', authController.verifyEmail);
 router.post('/resend-code', authController.resendCode);
-router.get('/me', authMiddleware, authController.me);
-router.put('/me', authMiddleware, authController.updateProfile);
-router.post('/add-contact', authMiddleware, authController.addContact);
-router.post('/add-contact-email', authMiddleware, authController.addContactByEmail);
-router.get('/contacts', authMiddleware, authController.getContacts);
-router.get('/find', authMiddleware, authController.findUser);
-router.post('/block', authMiddleware, authController.blockUser);
-router.post('/unblock', authMiddleware, authController.unblockUser);
-router.post('/delete-contact', authMiddleware, authController.deleteContact);
+router.get('/me', auth, authController.me);
+router.put('/me', auth, authController.updateProfile);
+router.post('/add-contact', auth, authController.addContact);
+router.post('/add-contact-email', auth, authController.addContactByEmail);
+router.get('/contacts', auth, authController.getContacts);
+router.get('/find', auth, authController.findUser);
+router.post('/block', auth, authController.blockUser);
+router.post('/unblock', auth, authController.unblockUser);
+router.post('/delete-contact', auth, authController.deleteContact);
 
 // Admin moderation routes
-router.post('/admin/ban', authMiddleware, requireAdmin, adminController.banUser);
-router.post('/admin/unban', authMiddleware, requireAdmin, adminController.unbanUser);
+router.post('/admin/ban', auth, auth.requireAdmin, adminController.banUser);
+router.post('/admin/unban', auth, auth.requireAdmin, adminController.unbanUser);
 
 // Test endpoint - kullanıcıları listele
 router.get('/users', async (req, res) => {
