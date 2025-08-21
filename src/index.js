@@ -60,6 +60,13 @@ const syncDatabase = async () => {
       );
     `);
     console.log('✅ Users table created');
+
+    // Ensure new moderation columns exist
+    await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "role" VARCHAR(32) NOT NULL DEFAULT 'user';`);
+    await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "isBanned" BOOLEAN NOT NULL DEFAULT false;`);
+    await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "banReason" TEXT;`);
+    await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "banExpiresAt" TIMESTAMPTZ;`);
+    console.log('✅ Users moderation columns ensured');
     
     // Create Messages table
     await sequelize.query(`
