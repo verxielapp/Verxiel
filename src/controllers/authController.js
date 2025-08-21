@@ -257,7 +257,15 @@ exports.login = async (req, res) => {
       });
     }
     
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    if (user.isBanned) {
+      let msg = 'Hesabınız yasaklandı';
+      if (user.banExpiresAt && new Date(user.banExpiresAt) > new Date()) {
+        msg += ` (bitiş: ${new Date(user.banExpiresAt).toISOString()})`;
+      }
+      return res.status(403).json({ message: msg, reason: user.banReason || undefined });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role || 'user' }, JWT_SECRET, { expiresIn: '7d' });
     console.log('Token generated successfully');
     console.log('=== LOGIN SUCCESS ===');
     
@@ -267,7 +275,8 @@ exports.login = async (req, res) => {
         email: user.email, 
         displayName: user.displayName, 
         avatarUrl: user.avatarUrl, 
-        id: user.id 
+        id: user.id,
+        role: user.role || 'user'
       } 
     });
   } catch (err) {

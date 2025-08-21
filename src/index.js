@@ -49,6 +49,10 @@ const syncDatabase = async () => {
         "avatarUrl" VARCHAR(255) DEFAULT '',
         "verified" BOOLEAN DEFAULT false,
         "emailCode" VARCHAR(255),
+        "role" VARCHAR(32) NOT NULL DEFAULT 'user',
+        "isBanned" BOOLEAN NOT NULL DEFAULT false,
+        "banReason" TEXT,
+        "banExpiresAt" TIMESTAMP WITH TIME ZONE,
         "contacts" TEXT DEFAULT '[]',
         "blocked" TEXT DEFAULT '[]',
         "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -87,6 +91,24 @@ const syncDatabase = async () => {
     console.log('✅ FriendRequests table created');
     
     console.log('✅ All tables created successfully');
+
+    // Ensure default admin account exists
+    try {
+      const [rows] = await sequelize.query(`SELECT id FROM "Users" WHERE username = 'Verxiel' LIMIT 1;`);
+      if (!rows || rows.length === 0) {
+        const bcrypt = require('bcrypt');
+        const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'Verxiel!Admin123', 10);
+        await sequelize.query(`
+          INSERT INTO "Users" (email, "passwordHash", "displayName", "username", verified, role, "createdAt", "updatedAt")
+          VALUES ('admin@verxiel.app', :passwordHash, 'Verxiel', 'Verxiel', true, 'admin', NOW(), NOW());
+        `, { replacements: { passwordHash } });
+        console.log('👑 Default admin user created: Verxiel / admin@verxiel.app');
+      } else {
+        console.log('👑 Admin user already exists');
+      }
+    } catch (e) {
+      console.warn('⚠️ Admin bootstrap skipped:', e.message);
+    }
     
   } catch (err) {
     console.error('❌ Database sync error:', err.message);

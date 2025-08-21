@@ -7,6 +7,23 @@ const User = sequelize.define('User', {
     primaryKey: true,
     autoIncrement: true
   },
+  role: {
+    type: DataTypes.STRING,
+    defaultValue: 'user',
+    allowNull: false
+  },
+  isBanned: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  banReason: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  banExpiresAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  }
   email: {
     type: DataTypes.STRING,
     unique: true,
