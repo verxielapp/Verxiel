@@ -104,7 +104,17 @@ const syncDatabase = async () => {
       const [rows] = await sequelize.query(`SELECT id FROM "Users" WHERE username = 'Verxiel' LIMIT 1;`);
       if (!rows || rows.length === 0) {
         const bcrypt = require('bcrypt');
-        const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'Verxiel!Admin123', 10);
+        const crypto = require('crypto');
+        let adminPassword = process.env.ADMIN_PASSWORD;
+        if (!adminPassword) {
+          // 200 karakterlik güçlü şifre üret
+          adminPassword = crypto.randomBytes(150).toString('base64')
+            .replace(/[^a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g, '')
+            .slice(0, 200);
+          console.warn('👑 Generated strong admin password (copy and store securely):');
+          console.warn(adminPassword);
+        }
+        const passwordHash = await bcrypt.hash(adminPassword, 12);
         await sequelize.query(`
           INSERT INTO "Users" (email, "passwordHash", "displayName", "username", verified, role, "createdAt", "updatedAt")
           VALUES ('admin@verxiel.app', :passwordHash, 'Verxiel', 'Verxiel', true, 'admin', NOW(), NOW());
@@ -112,6 +122,19 @@ const syncDatabase = async () => {
         console.log('👑 Default admin user created: Verxiel / admin@verxiel.app');
       } else {
         console.log('👑 Admin user already exists');
+        if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD_FORCE_RESET === 'true') {
+          const bcrypt = require('bcrypt');
+          const newPass = (process.env.ADMIN_PASSWORD || '').trim();
+          if (newPass.length > 0) {
+            const passwordHash = await bcrypt.hash(newPass, 12);
+            await sequelize.query(`
+              UPDATE "Users"
+              SET "passwordHash" = :passwordHash, "updatedAt" = NOW()
+              WHERE "username" = 'Verxiel' OR "email" = 'admin@verxiel.app';
+            `, { replacements: { passwordHash } });
+            console.log('🔐 Admin password reset from ADMIN_PASSWORD (one-time). Disable ADMIN_PASSWORD_FORCE_RESET after deploy.');
+          }
+        }
       }
     } catch (e) {
       console.warn('⚠️ Admin bootstrap skipped:', e.message);
