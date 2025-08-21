@@ -23,7 +23,7 @@ const User = sequelize.define('User', {
   banExpiresAt: {
     type: DataTypes.DATE,
     allowNull: true
-  }
+  },
   email: {
     type: DataTypes.STRING,
     unique: true,
