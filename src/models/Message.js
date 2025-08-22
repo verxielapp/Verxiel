@@ -9,7 +9,7 @@ const Message = sequelize.define('Message', {
   },
   content: {
     type: DataTypes.TEXT,
-    allowNull: true
+    allowNull: false
   },
   image: {
     type: DataTypes.TEXT,
@@ -48,7 +48,7 @@ const Message = sequelize.define('Message', {
     defaultValue: false
   }
 }, {
-  tableName: 'Messages', // Tablo adını Messages olarak belirt
+  tableName: 'Messages',
   timestamps: true
 });
 

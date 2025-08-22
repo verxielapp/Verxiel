@@ -75,13 +75,22 @@ const syncDatabase = async () => {
         "content" TEXT NOT NULL,
         "fromId" INTEGER REFERENCES "Users"("id"),
         "toId" INTEGER REFERENCES "Users"("id"),
+        "groupId" INTEGER,
         "image" TEXT,
         "type" VARCHAR(50) DEFAULT 'text',
+        "timestamp" BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
+        "read" BOOLEAN DEFAULT false,
         "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
         "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL
       );
     `);
     console.log('✅ Messages table created');
+    
+    // Ensure Messages table has all required columns
+    await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "groupId" INTEGER;`);
+    await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "timestamp" BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000;`);
+    await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "read" BOOLEAN DEFAULT false;`);
+    console.log('✅ Messages table columns ensured');
     
     // Create FriendRequests table
     await sequelize.query(`

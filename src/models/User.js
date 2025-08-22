@@ -9,7 +9,7 @@ const User = sequelize.define('User', {
   },
   role: {
     type: DataTypes.STRING,
-    defaultValue: 'user',
+    defaultValue: 'user', // 'user' | 'admin'
     allowNull: false
   },
   isBanned: {
