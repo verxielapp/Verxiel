@@ -368,7 +368,13 @@ app.get('/api/db-integrity', async (req, res) => {
 });
 
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, { 
+  cors: { 
+    origin: ["https://verxiel.netlify.app", "http://localhost:3000", "https://verxiel.onrender.com"],
+    methods: ["GET", "POST"],
+    credentials: true
+  } 
+});
 chatSocket(io);
 
 // Start server immediately after database sync

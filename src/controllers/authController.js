@@ -88,57 +88,84 @@ exports.register = async (req, res) => {
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.valid) {
       console.log('Password validation failed:', passwordValidation.message);
-      return res.status(400).json({ message: passwordValidation.message });
+      return res.status(400).json({ 
+        success: false,
+        message: passwordValidation.message 
+      });
     }
     
     const usernameValidation = validateUsername(username);
     if (!usernameValidation.valid) {
       console.log('Username validation failed:', usernameValidation.message);
-      return res.status(400).json({ message: usernameValidation.message });
+      return res.status(400).json({ 
+        success: false,
+        message: usernameValidation.message 
+      });
     }
 
     // Gerekli alanları kontrol et
     if (!email || !password || !displayName || !username) {
       console.log('Missing required fields');
-      return res.status(400).json({ message: 'Tüm alanlar gereklidir!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Tüm alanlar gereklidir!' 
+      });
     }
 
     // E-posta formatını kontrol et
     if (!validateEmail(email)) {
       console.log('Invalid email format:', email);
-      return res.status(400).json({ message: 'Geçersiz e-posta formatı!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Geçersiz e-posta formatı!' 
+      });
     }
     
     // Şifre uzunluğunu kontrol et
     if (password.length < 8) {
       console.log('Password too short');
-      return res.status(400).json({ message: 'Şifre en az 8 karakter olmalıdır!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Şifre en az 8 karakter olmalıdır!' 
+      });
     }
 
     // Kullanıcı adı uzunluğunu kontrol et
     if (username.length < 4) {
       console.log('Username too short');
-      return res.status(400).json({ message: 'Kullanıcı adı en az 4 karakter olmalıdır!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Kullanıcı adı en az 4 karakter olmalıdır!' 
+      });
     }
 
     // Kullanıcı adı formatını kontrol et
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
       console.log('Invalid username format:', username);
-      return res.status(400).json({ message: 'Kullanıcı adı sadece harf, rakam ve alt çizgi içerebilir!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Kullanıcı adı sadece harf, rakam ve alt çizgi içerebilir!' 
+      });
     }
     
     console.log('Checking for existing email...');
     const existing = await User.findOne({ where: { email } });
     if (existing) {
       console.log('Email already exists:', email);
-      return res.status(400).json({ message: 'Bu e-posta adresi zaten kullanılıyor!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Bu e-posta adresi zaten kullanılıyor!' 
+      });
     }
     
     console.log('Checking for existing username...');
     const existingUsername = await User.findOne({ where: { username } });
     if (existingUsername) {
       console.log('Username already exists:', username);
-      return res.status(400).json({ message: 'Bu kullanıcı adı zaten kullanılıyor!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Bu kullanıcı adı zaten kullanılıyor!' 
+      });
     }
     
     console.log('Hashing password...');
@@ -200,18 +227,29 @@ exports.register = async (req, res) => {
     
     console.log('=== REGISTER SUCCESS ===');
     res.status(201).json({ 
+      success: true,
       message: 'Kayıt başarılı! Email adresinizi doğrulayın.', 
       user: { 
         id: user.id,
         email: user.email, 
-        displayName: user.displayName, 
-        username: user.username 
+        username: user.username,
+        displayName: user.displayName,
+        verified: user.verified,
+        role: user.role || 'user',
+        contacts: user.contacts || [],
+        blocked: user.blocked || [],
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
       } 
     });
   } catch (err) {
     console.error('=== REGISTER ERROR ===');
     console.error('Registration error:', err);
-    res.status(500).json({ message: 'Registration failed', error: err.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Registration failed', 
+      error: err.message 
+    });
   }
 };
 
@@ -228,7 +266,10 @@ exports.login = async (req, res) => {
     
     if (!user) {
       console.log('User not found for email:', email);
-      return res.status(400).json({ message: 'E-posta veya şifre hatalı!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'E-posta veya şifre hatalı!' 
+      });
     }
     
     console.log('User details:', {
@@ -244,13 +285,17 @@ exports.login = async (req, res) => {
     
     if (!valid) {
       console.log('Invalid password for user:', email);
-      return res.status(400).json({ message: 'E-posta veya şifre hatalı!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'E-posta veya şifre hatalı!' 
+      });
     }
     
     // Email doğrulama kontrolü
     if (!user.verified) {
       console.log('User not verified:', email);
       return res.status(400).json({ 
+        success: false,
         message: 'Email adresinizi doğrulamanız gerekiyor!', 
         needsVerification: true,
         email: user.email 
@@ -262,7 +307,11 @@ exports.login = async (req, res) => {
       if (user.banExpiresAt && new Date(user.banExpiresAt) > new Date()) {
         msg += ` (bitiş: ${new Date(user.banExpiresAt).toISOString()})`;
       }
-      return res.status(403).json({ message: msg, reason: user.banReason || undefined });
+      return res.status(403).json({ 
+        success: false,
+        message: msg, 
+        reason: user.banReason || undefined 
+      });
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role || 'user' }, JWT_SECRET, { expiresIn: '7d' });
@@ -270,18 +319,30 @@ exports.login = async (req, res) => {
     console.log('=== LOGIN SUCCESS ===');
     
     res.json({ 
+      success: true,
+      message: 'Giriş başarılı!',
       token, 
       user: { 
+        id: user.id,
         email: user.email, 
+        username: user.username,
         displayName: user.displayName, 
         avatarUrl: user.avatarUrl, 
-        id: user.id,
-        role: user.role || 'user'
+        verified: user.verified,
+        role: user.role || 'user',
+        contacts: user.contacts || [],
+        blocked: user.blocked || [],
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
       } 
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ message: 'Login failed', error: err.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Login failed', 
+      error: err.message 
+    });
   }
 };
 
@@ -292,15 +353,24 @@ exports.verifyEmail = async (req, res) => {
   try {
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(400).json({ message: 'Kullanıcı bulunamadı!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Kullanıcı bulunamadı!' 
+      });
     }
     
     if (user.verified) {
-      return res.status(400).json({ message: 'Email zaten doğrulanmış!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email zaten doğrulanmış!' 
+      });
     }
     
     if (user.emailCode !== code) {
-      return res.status(400).json({ message: 'Geçersiz doğrulama kodu!' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Geçersiz doğrulama kodu!' 
+      });
     }
     
     // Email doğrulandı, kullanıcıyı güncelle
@@ -310,13 +380,18 @@ exports.verifyEmail = async (req, res) => {
     });
     
     res.json({ 
+      success: true,
       message: 'Email başarıyla doğrulandı! Şimdi giriş yapabilirsiniz.',
       verified: true
     });
     
   } catch (err) {
     console.error('Email verification error:', err);
-    res.status(500).json({ message: 'Doğrulama başarısız!', error: err.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Doğrulama başarısız!', 
+      error: err.message 
+    });
   }
 };
 
@@ -325,8 +400,14 @@ exports.resendCode = async (req, res) => {
   const { email } = req.body;
   try {
     const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
-    if (user.verified) return res.status(400).json({ message: 'Zaten doğrulanmış' });
+    if (!user) return res.status(404).json({ 
+      success: false,
+      message: 'Kullanıcı bulunamadı' 
+    });
+    if (user.verified) return res.status(400).json({ 
+      success: false,
+      message: 'Zaten doğrulanmış' 
+    });
     
     // Yeni kod oluştur
     const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -355,7 +436,10 @@ exports.resendCode = async (req, res) => {
       
       const result = await transporter.sendMail(mailOptions);
       console.log('✅ Yeniden email başarıyla gönderildi:', result.messageId);
-      res.json({ message: 'Yeni kod gönderildi' });
+      res.json({ 
+        success: true,
+        message: 'Yeni kod gönderildi' 
+      });
     } catch (emailErr) {
       console.error('❌ Email gönderme hatası:', emailErr);
       console.error('Yeniden email gönderme detayları:', {
