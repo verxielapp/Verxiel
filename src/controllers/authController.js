@@ -764,4 +764,74 @@ exports.createTestUser = async (req, res) => {
     console.error('Test user creation error:', err);
     res.status(500).json({ message: 'Test kullanıcısı oluşturulamadı', error: err.message });
   }
+};
+
+// Mesaj gönderme (auth controller'da alternatif endpoint)
+exports.sendMessage = async (req, res) => {
+  try {
+    const Message = require('../models/Message');
+    const { to, content, type = 'text', image, groupId } = req.body;
+    const fromId = req.user.id;
+
+    if (!to && !groupId) {
+      return res.status(400).json({ message: 'Alıcı veya grup ID gerekli' });
+    }
+
+    if (!content && !image) {
+      return res.status(400).json({ message: 'Mesaj içeriği veya resim gerekli' });
+    }
+
+    let toId = to;
+    
+    // Eğer to alanı email ise, kullanıcıyı bul
+    if (to && to.includes('@')) {
+      const receiver = await User.findOne({ where: { email: to } });
+      if (!receiver) {
+        return res.status(404).json({ message: 'Alıcı bulunamadı' });
+      }
+      toId = receiver.id;
+    }
+
+    // Mesaj oluştur
+    const message = await Message.create({
+      fromId: fromId,
+      toId: toId,
+      groupId: groupId,
+      content: content,
+      image: image,
+      type: type,
+      timestamp: Date.now()
+    });
+
+    // Mesajı populate et
+    const populatedMessage = await Message.findByPk(message.id, {
+      include: [
+        {
+          model: User,
+          as: 'from',
+          attributes: ['id', 'displayName', 'email', 'username']
+        },
+        {
+          model: User,
+          as: 'to',
+          attributes: ['id', 'displayName', 'email', 'username']
+        }
+      ]
+    });
+
+    console.log('Message sent via auth endpoint:', populatedMessage);
+
+    res.status(201).json({
+      success: true,
+      message: 'Mesaj gönderildi',
+      data: populatedMessage
+    });
+
+  } catch (error) {
+    console.error('Error sending message:', error);
+    res.status(500).json({ 
+      message: 'Mesaj gönderilemedi', 
+      error: error.message 
+    });
+  }
 }; 

@@ -14,6 +14,7 @@ router.put('/me', auth, authController.updateProfile);
 router.post('/add-contact', auth, authController.addContact);
 router.post('/add-contact-email', auth, authController.addContactByEmail);
 router.get('/contacts', auth, authController.getContacts);
+router.post('/send-message', auth, authController.sendMessage);
 router.get('/find', auth, authController.findUser);
 router.post('/block', auth, authController.blockUser);
 router.post('/unblock', auth, authController.unblockUser);
