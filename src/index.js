@@ -207,7 +207,7 @@ const syncDatabase = async () => {
       const tableName = dialect === 'mysql' ? 'Users' : '"Users"';
       const [rows] = await sequelize.query(`SELECT id FROM ${tableName} WHERE username = 'Verxiel' LIMIT 1;`);
       if (!rows || rows.length === 0) {
-        const bcrypt = require('bcrypt');
+        const bcrypt = require('bcryptjs');
         const crypto = require('crypto');
         let adminPassword = process.env.ADMIN_PASSWORD;
         if (!adminPassword) {
@@ -234,7 +234,7 @@ const syncDatabase = async () => {
       } else {
         console.log('👑 Admin user already exists');
         if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD_FORCE_RESET === 'true') {
-          const bcrypt = require('bcrypt');
+          const bcrypt = require('bcryptjs');
           const newPass = (process.env.ADMIN_PASSWORD || '').trim();
           if (newPass.length > 0) {
             const passwordHash = await bcrypt.hash(newPass, 12);
