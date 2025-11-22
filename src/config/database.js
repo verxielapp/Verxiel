@@ -7,6 +7,7 @@ const DB_NAME = process.env.DB_NAME || process.env.DATABASE_NAME;
 const DB_USER = process.env.DB_USER || process.env.DATABASE_USER;
 const DB_PASSWORD = process.env.DB_PASSWORD || process.env.DATABASE_PASSWORD;
 const DB_PORT = process.env.DB_PORT || 3306;
+const DB_SOCKET = process.env.DB_SOCKET || '/tmp/mysql.sock';
 
 // Log environment variables for debugging
 console.log('🔍 Environment check:');
@@ -30,9 +31,10 @@ if (DB_NAME && DB_USER && DB_PASSWORD) {
   console.log('   Port:', DB_PORT);
   
   // Try different connection configurations for cPanel
+  // Use socket path if available (works better on some cPanel servers)
+  const useSocket = DB_SOCKET && DB_SOCKET !== 'false' && DB_SOCKET !== '';
+  
   const connectionConfig = {
-    host: DB_HOST,
-    port: DB_PORT,
     dialect: 'mysql',
     dialectOptions: {
       connectTimeout: 60000,
@@ -58,9 +60,20 @@ if (DB_NAME && DB_USER && DB_PASSWORD) {
       max: 3
     },
     // Additional options for cPanel compatibility
-    reconnect: true,
-    operatorsAliases: false
+    reconnect: true
   };
+
+  // If socket path is set, use it; otherwise use host/port
+  if (useSocket) {
+    // Normalize socket path (ensure it starts with /)
+    const socketPath = DB_SOCKET.startsWith('/') ? DB_SOCKET : '/' + DB_SOCKET;
+    connectionConfig.dialectOptions.socketPath = socketPath;
+    console.log('🔌 Using MySQL socket:', socketPath);
+  } else {
+    connectionConfig.host = DB_HOST;
+    connectionConfig.port = DB_PORT;
+    console.log('🌐 Using MySQL host/port:', DB_HOST, DB_PORT);
+  }
 
   sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, connectionConfig);
 } else {

@@ -93,7 +93,7 @@ const syncDatabase = async () => {
           image TEXT,
           type VARCHAR(50) DEFAULT 'text',
           timestamp BIGINT DEFAULT (UNIX_TIMESTAMP(NOW()) * 1000),
-          read BOOLEAN DEFAULT false,
+          \`read\` TINYINT(1) DEFAULT 0,
           createdAt DATETIME NOT NULL,
           updatedAt DATETIME NOT NULL,
           FOREIGN KEY (fromId) REFERENCES Users(id) ON DELETE CASCADE,
@@ -110,7 +110,7 @@ const syncDatabase = async () => {
         await sequelize.query(`ALTER TABLE Messages ADD COLUMN timestamp BIGINT DEFAULT (UNIX_TIMESTAMP(NOW()) * 1000);`);
       } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
       try {
-        await sequelize.query(`ALTER TABLE Messages ADD COLUMN read BOOLEAN DEFAULT false;`);
+        await sequelize.query(`ALTER TABLE Messages ADD COLUMN \`read\` TINYINT(1) DEFAULT 0;`);
       } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
       console.log('✅ Messages table columns ensured');
       
