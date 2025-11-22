@@ -11,8 +11,9 @@ const DB_PORT = process.env.DB_PORT || 3306;
 // Log environment variables for debugging
 console.log('🔍 Environment check:');
 console.log('DB_HOST:', DB_HOST);
-console.log('DB_NAME exists:', !!DB_NAME);
-console.log('DB_USER exists:', !!DB_USER);
+console.log('DB_NAME:', DB_NAME || 'NOT SET');
+console.log('DB_USER:', DB_USER || 'NOT SET');
+console.log('DB_PASSWORD:', DB_PASSWORD ? '***SET***' : 'NOT SET');
 console.log('DB_PORT:', DB_PORT);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('PORT:', process.env.PORT);
@@ -22,30 +23,46 @@ let sequelize;
 if (DB_NAME && DB_USER && DB_PASSWORD) {
   // Production: Use MySQL from cPanel
   console.log('🚀 Using MySQL database from cPanel');
-  sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
+  console.log('📋 Connection details:');
+  console.log('   Host:', DB_HOST);
+  console.log('   Database:', DB_NAME);
+  console.log('   User:', DB_USER);
+  console.log('   Port:', DB_PORT);
+  
+  // Try different connection configurations for cPanel
+  const connectionConfig = {
     host: DB_HOST,
     port: DB_PORT,
     dialect: 'mysql',
     dialectOptions: {
-      // Connection pool settings for production
       connectTimeout: 60000,
+      multipleStatements: true,
+      // Try different authentication methods
+      authPlugins: {
+        mysql_native_password: () => () => Buffer.from(DB_PASSWORD + '\0')
+      }
     },
     pool: {
-      max: 10,
+      max: 5,
       min: 0,
       acquire: 30000,
       idle: 10000
     },
-    logging: false, // Disable SQL logs in production
+    logging: false,
     define: {
-      // Prevent SQL injection
       freezeTableName: true,
-      // Add timestamps for audit trail
       timestamps: true,
-      // Use paranoid mode for soft deletes
       paranoid: false
-    }
-  });
+    },
+    retry: {
+      max: 3
+    },
+    // Additional options for cPanel compatibility
+    reconnect: true,
+    operatorsAliases: false
+  };
+
+  sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, connectionConfig);
 } else {
   // Development: Use SQLite for local development
   console.log('💻 Using SQLite database for local development');
