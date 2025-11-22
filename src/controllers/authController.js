@@ -5,12 +5,24 @@ const nodemailer = require('nodemailer');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'verxiel_secret';
 
-// GMAIL SMTP - Gerçek email gönderimi (Environment Variables ile güvenli)
+// cPanel SMTP - Domain mail hesabı ile email gönderimi
+const SMTP_HOST = process.env.SMTP_HOST || 'mail.verxiel.com';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
+const SMTP_SECURE = process.env.SMTP_SECURE === 'true' || SMTP_PORT === 465; // 465 için SSL, 587 için TLS
+const EMAIL_USER = process.env.EMAIL_USER || 'noreply@verxiel.com';
+const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD;
+
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_SECURE, // true for 465, false for other ports
   auth: {
-    user: process.env.EMAIL_USER || 'verxielapp@gmail.com',
-    pass: process.env.EMAIL_PASSWORD || 'butt qhis zfvd noxp'
+    user: EMAIL_USER,
+    pass: EMAIL_PASSWORD
+  },
+  tls: {
+    // cPanel mail sunucuları için genellikle self-signed sertifika kullanır
+    rejectUnauthorized: false
   }
 });
 
@@ -18,14 +30,20 @@ const transporter = nodemailer.createTransport({
 transporter.verify(function(error, success) {
   if (error) {
     console.log('❌ Email konfigürasyon hatası:', error.message);
-    console.log('⚠️  Email gönderimi çalışmayacak! Gmail App Password ayarlayın.');
-    console.log('📧 Gmail App Password oluşturma:');
-    console.log('   1. Gmail → Google Hesabı → Güvenlik → 2 Adımlı Doğrulama (açık)');
-    console.log('   2. Uygulama Şifreleri → Diğer → Verxiel → Şifre oluştur');
-    console.log('   3. Oluşan 16 haneli şifreyi kodda "your-gmail-app-password" yerine yazın');
+    console.log('⚠️  Email gönderimi çalışmayacak! cPanel mail ayarlarını kontrol edin.');
+    console.log('📧 cPanel SMTP Ayarları:');
+    console.log(`   SMTP_HOST: ${SMTP_HOST}`);
+    console.log(`   SMTP_PORT: ${SMTP_PORT}`);
+    console.log(`   EMAIL_USER: ${EMAIL_USER}`);
+    console.log(`   EMAIL_PASSWORD: ${EMAIL_PASSWORD ? 'SET' : 'NOT SET'}`);
+    console.log('💡 Environment Variables ekleyin:');
+    console.log('   SMTP_HOST=mail.verxiel.com (veya localhost)');
+    console.log('   SMTP_PORT=587 (TLS) veya 465 (SSL)');
+    console.log('   EMAIL_USER=noreply@verxiel.com');
+    console.log('   EMAIL_PASSWORD=mail_hesabının_şifresi');
   } else {
-    console.log('✅ Gmail SMTP sunucusu hazır');
-    console.log('📧 Gerçek email gönderimi aktif!');
+    console.log('✅ cPanel SMTP sunucusu hazır');
+    console.log(`📧 Email gönderimi aktif: ${EMAIL_USER}`);
   }
 });
 
@@ -199,7 +217,7 @@ exports.register = async (req, res) => {
       console.log('Email code:', emailCode);
       
       const mailOptions = {
-        from: '"Verxiel" <noreply@verxiel.app>',
+        from: `"Verxiel" <${EMAIL_USER}>`,
         to: email,
         subject: 'Verxiel - Email Doğrulama',
         html: `
@@ -420,7 +438,7 @@ exports.resendCode = async (req, res) => {
       console.log('Yeni email kodu:', emailCode);
       
       const mailOptions = {
-        from: '"Verxiel" <noreply@verxiel.app>',
+        from: `"Verxiel" <${EMAIL_USER}>`,
         to: email,
         subject: 'Verxiel - Email Doğrulama Kodu',
         html: `

@@ -50,12 +50,23 @@ PORT=(cPanel otomatik ayarlayacak, elle değiştirme)
 NODE_ENV=production
 CORS_ORIGIN=https://verxiel.com,https://www.verxiel.com
 JWT_SECRET=güçlü_bir_secret_key_buraya
+SMTP_HOST=mail.verxiel.com
+SMTP_PORT=587
+SMTP_SECURE=false
+EMAIL_USER=noreply@verxiel.com
+EMAIL_PASSWORD=mail_hesabının_şifresi
 ```
 
 **Önemli:**
 - `DB_NAME`, `DB_USER`, `DB_PASSWORD` değerlerini MySQL Databases'den aldığın değerlerle doldur
 - `JWT_SECRET` için güçlü bir random string oluştur (örn: `openssl rand -base64 32`)
 - `CORS_ORIGIN` için frontend URL'ini ekle
+- **Email Ayarları:**
+  - `SMTP_HOST`: Genellikle `mail.verxiel.com` veya `localhost` (cPanel'de kontrol et)
+  - `SMTP_PORT`: `587` (TLS) veya `465` (SSL) - cPanel'de hangisi açıksa
+  - `SMTP_SECURE`: Port 465 ise `true`, 587 ise `false`
+  - `EMAIL_USER`: `noreply@verxiel.com` (cPanel'de oluşturduğun mail hesabı)
+  - `EMAIL_PASSWORD`: Mail hesabının şifresi
 
 ## 5. Dependencies Yükleme
 
