@@ -35,82 +35,177 @@ const syncDatabase = async () => {
     await sequelize.authenticate();
     console.log('✅ Database connection verified');
     
+    // Detect database dialect
+    const dialect = sequelize.getDialect();
+    console.log(`📊 Database dialect: ${dialect}`);
+    
     // Create tables manually using raw SQL
     console.log('🔨 Creating tables manually...');
     
-    // Create Users table
-    await sequelize.query(`
-      CREATE TABLE IF NOT EXISTS "Users" (
-        "id" SERIAL PRIMARY KEY,
-        "email" VARCHAR(255) UNIQUE NOT NULL,
-        "passwordHash" VARCHAR(255) NOT NULL,
-        "displayName" VARCHAR(255) NOT NULL,
-        "username" VARCHAR(255) UNIQUE NOT NULL,
-        "avatarUrl" VARCHAR(255) DEFAULT '',
-        "verified" BOOLEAN DEFAULT false,
-        "emailCode" VARCHAR(255),
-        "role" VARCHAR(32) NOT NULL DEFAULT 'user',
-        "isBanned" BOOLEAN NOT NULL DEFAULT false,
-        "banReason" TEXT,
-        "banExpiresAt" TIMESTAMP WITH TIME ZONE,
-        "contacts" TEXT DEFAULT '[]',
-        "blocked" TEXT DEFAULT '[]',
-        "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
-        "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL
-      );
-    `);
-    console.log('✅ Users table created');
+    if (dialect === 'mysql') {
+      // MySQL syntax
+      // Create Users table
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS Users (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          passwordHash VARCHAR(255) NOT NULL,
+          displayName VARCHAR(255) NOT NULL,
+          username VARCHAR(255) UNIQUE NOT NULL,
+          avatarUrl VARCHAR(255) DEFAULT '',
+          verified BOOLEAN DEFAULT false,
+          emailCode VARCHAR(255),
+          role VARCHAR(32) NOT NULL DEFAULT 'user',
+          isBanned BOOLEAN NOT NULL DEFAULT false,
+          banReason TEXT,
+          banExpiresAt DATETIME,
+          contacts TEXT DEFAULT '[]',
+          blocked TEXT DEFAULT '[]',
+          createdAt DATETIME NOT NULL,
+          updatedAt DATETIME NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
+      console.log('✅ Users table created');
 
-    // Ensure new moderation columns exist
-    await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "role" VARCHAR(32) NOT NULL DEFAULT 'user';`);
-    await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "isBanned" BOOLEAN NOT NULL DEFAULT false;`);
-    await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "banReason" TEXT;`);
-    await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "banExpiresAt" TIMESTAMPTZ;`);
-    console.log('✅ Users moderation columns ensured');
-    
-    // Create Messages table
-    await sequelize.query(`
-      CREATE TABLE IF NOT EXISTS "Messages" (
-        "id" SERIAL PRIMARY KEY,
-        "content" TEXT NOT NULL,
-        "fromId" INTEGER REFERENCES "Users"("id"),
-        "toId" INTEGER REFERENCES "Users"("id"),
-        "groupId" INTEGER,
-        "image" TEXT,
-        "type" VARCHAR(50) DEFAULT 'text',
-        "timestamp" BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
-        "read" BOOLEAN DEFAULT false,
-        "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
-        "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL
-      );
-    `);
-    console.log('✅ Messages table created');
-    
-    // Ensure Messages table has all required columns
-    await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "groupId" INTEGER;`);
-    await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "timestamp" BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000;`);
-    await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "read" BOOLEAN DEFAULT false;`);
-    console.log('✅ Messages table columns ensured');
-    
-    // Create FriendRequests table
-    await sequelize.query(`
-      CREATE TABLE IF NOT EXISTS "FriendRequests" (
-        "id" SERIAL PRIMARY KEY,
-        "senderId" INTEGER REFERENCES "Users"("id"),
-        "receiverId" INTEGER REFERENCES "Users"("id"),
-        "status" VARCHAR(50) DEFAULT 'pending',
-        "message" TEXT,
-        "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
-        "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL
-      );
-    `);
-    console.log('✅ FriendRequests table created');
+      // Ensure new moderation columns exist (MySQL doesn't support IF NOT EXISTS in ALTER TABLE)
+      try {
+        await sequelize.query(`ALTER TABLE Users ADD COLUMN role VARCHAR(32) NOT NULL DEFAULT 'user';`);
+      } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
+      try {
+        await sequelize.query(`ALTER TABLE Users ADD COLUMN isBanned BOOLEAN NOT NULL DEFAULT false;`);
+      } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
+      try {
+        await sequelize.query(`ALTER TABLE Users ADD COLUMN banReason TEXT;`);
+      } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
+      try {
+        await sequelize.query(`ALTER TABLE Users ADD COLUMN banExpiresAt DATETIME;`);
+      } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
+      console.log('✅ Users moderation columns ensured');
+      
+      // Create Messages table
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS Messages (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          content TEXT NOT NULL,
+          fromId INT,
+          toId INT,
+          groupId INT,
+          image TEXT,
+          type VARCHAR(50) DEFAULT 'text',
+          timestamp BIGINT DEFAULT (UNIX_TIMESTAMP(NOW()) * 1000),
+          read BOOLEAN DEFAULT false,
+          createdAt DATETIME NOT NULL,
+          updatedAt DATETIME NOT NULL,
+          FOREIGN KEY (fromId) REFERENCES Users(id) ON DELETE CASCADE,
+          FOREIGN KEY (toId) REFERENCES Users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
+      console.log('✅ Messages table created');
+      
+      // Ensure Messages table has all required columns
+      try {
+        await sequelize.query(`ALTER TABLE Messages ADD COLUMN groupId INT;`);
+      } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
+      try {
+        await sequelize.query(`ALTER TABLE Messages ADD COLUMN timestamp BIGINT DEFAULT (UNIX_TIMESTAMP(NOW()) * 1000);`);
+      } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
+      try {
+        await sequelize.query(`ALTER TABLE Messages ADD COLUMN read BOOLEAN DEFAULT false;`);
+      } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
+      console.log('✅ Messages table columns ensured');
+      
+      // Create FriendRequests table
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS FriendRequests (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          senderId INT,
+          receiverId INT,
+          status VARCHAR(50) DEFAULT 'pending',
+          message TEXT,
+          createdAt DATETIME NOT NULL,
+          updatedAt DATETIME NOT NULL,
+          FOREIGN KEY (senderId) REFERENCES Users(id) ON DELETE CASCADE,
+          FOREIGN KEY (receiverId) REFERENCES Users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
+      console.log('✅ FriendRequests table created');
+    } else {
+      // PostgreSQL/SQLite syntax (original)
+      // Create Users table
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS "Users" (
+          "id" SERIAL PRIMARY KEY,
+          "email" VARCHAR(255) UNIQUE NOT NULL,
+          "passwordHash" VARCHAR(255) NOT NULL,
+          "displayName" VARCHAR(255) NOT NULL,
+          "username" VARCHAR(255) UNIQUE NOT NULL,
+          "avatarUrl" VARCHAR(255) DEFAULT '',
+          "verified" BOOLEAN DEFAULT false,
+          "emailCode" VARCHAR(255),
+          "role" VARCHAR(32) NOT NULL DEFAULT 'user',
+          "isBanned" BOOLEAN NOT NULL DEFAULT false,
+          "banReason" TEXT,
+          "banExpiresAt" TIMESTAMP WITH TIME ZONE,
+          "contacts" TEXT DEFAULT '[]',
+          "blocked" TEXT DEFAULT '[]',
+          "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
+          "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL
+        );
+      `);
+      console.log('✅ Users table created');
+
+      // Ensure new moderation columns exist
+      await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "role" VARCHAR(32) NOT NULL DEFAULT 'user';`);
+      await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "isBanned" BOOLEAN NOT NULL DEFAULT false;`);
+      await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "banReason" TEXT;`);
+      await sequelize.query(`ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "banExpiresAt" TIMESTAMPTZ;`);
+      console.log('✅ Users moderation columns ensured');
+      
+      // Create Messages table
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS "Messages" (
+          "id" SERIAL PRIMARY KEY,
+          "content" TEXT NOT NULL,
+          "fromId" INTEGER REFERENCES "Users"("id"),
+          "toId" INTEGER REFERENCES "Users"("id"),
+          "groupId" INTEGER,
+          "image" TEXT,
+          "type" VARCHAR(50) DEFAULT 'text',
+          "timestamp" BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
+          "read" BOOLEAN DEFAULT false,
+          "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
+          "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL
+        );
+      `);
+      console.log('✅ Messages table created');
+      
+      // Ensure Messages table has all required columns
+      await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "groupId" INTEGER;`);
+      await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "timestamp" BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000;`);
+      await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "read" BOOLEAN DEFAULT false;`);
+      console.log('✅ Messages table columns ensured');
+      
+      // Create FriendRequests table
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS "FriendRequests" (
+          "id" SERIAL PRIMARY KEY,
+          "senderId" INTEGER REFERENCES "Users"("id"),
+          "receiverId" INTEGER REFERENCES "Users"("id"),
+          "status" VARCHAR(50) DEFAULT 'pending',
+          "message" TEXT,
+          "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL,
+          "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL
+        );
+      `);
+      console.log('✅ FriendRequests table created');
+    }
     
     console.log('✅ All tables created successfully');
 
     // Ensure default admin account exists
     try {
-      const [rows] = await sequelize.query(`SELECT id FROM "Users" WHERE username = 'Verxiel' LIMIT 1;`);
+      const tableName = dialect === 'mysql' ? 'Users' : '"Users"';
+      const [rows] = await sequelize.query(`SELECT id FROM ${tableName} WHERE username = 'Verxiel' LIMIT 1;`);
       if (!rows || rows.length === 0) {
         const bcrypt = require('bcrypt');
         const crypto = require('crypto');
@@ -124,10 +219,17 @@ const syncDatabase = async () => {
           console.warn(adminPassword);
         }
         const passwordHash = await bcrypt.hash(adminPassword, 12);
-        await sequelize.query(`
-          INSERT INTO "Users" (email, "passwordHash", "displayName", "username", verified, role, "createdAt", "updatedAt")
-          VALUES ('admin@verxiel.app', :passwordHash, 'Verxiel', 'Verxiel', true, 'admin', NOW(), NOW());
-        `, { replacements: { passwordHash } });
+        if (dialect === 'mysql') {
+          await sequelize.query(`
+            INSERT INTO Users (email, passwordHash, displayName, username, verified, role, createdAt, updatedAt)
+            VALUES ('admin@verxiel.app', :passwordHash, 'Verxiel', 'Verxiel', true, 'admin', NOW(), NOW());
+          `, { replacements: { passwordHash } });
+        } else {
+          await sequelize.query(`
+            INSERT INTO "Users" (email, "passwordHash", "displayName", "username", verified, role, "createdAt", "updatedAt")
+            VALUES ('admin@verxiel.app', :passwordHash, 'Verxiel', 'Verxiel', true, 'admin', NOW(), NOW());
+          `, { replacements: { passwordHash } });
+        }
         console.log('👑 Default admin user created: Verxiel / admin@verxiel.app');
       } else {
         console.log('👑 Admin user already exists');
@@ -136,11 +238,19 @@ const syncDatabase = async () => {
           const newPass = (process.env.ADMIN_PASSWORD || '').trim();
           if (newPass.length > 0) {
             const passwordHash = await bcrypt.hash(newPass, 12);
-            await sequelize.query(`
-              UPDATE "Users"
-              SET "passwordHash" = :passwordHash, "updatedAt" = NOW()
-              WHERE "username" = 'Verxiel' OR "email" = 'admin@verxiel.app';
-            `, { replacements: { passwordHash } });
+            if (dialect === 'mysql') {
+              await sequelize.query(`
+                UPDATE Users
+                SET passwordHash = :passwordHash, updatedAt = NOW()
+                WHERE username = 'Verxiel' OR email = 'admin@verxiel.app';
+              `, { replacements: { passwordHash } });
+            } else {
+              await sequelize.query(`
+                UPDATE "Users"
+                SET "passwordHash" = :passwordHash, "updatedAt" = NOW()
+                WHERE "username" = 'Verxiel' OR "email" = 'admin@verxiel.app';
+              `, { replacements: { passwordHash } });
+            }
             console.log('🔐 Admin password reset from ADMIN_PASSWORD (one-time). Disable ADMIN_PASSWORD_FORCE_RESET after deploy.');
           }
         }

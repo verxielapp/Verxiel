@@ -1,36 +1,40 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Database configuration for cloud deployment
-const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-const DB_ENCRYPTION_KEY = process.env.DB_ENCRYPTION_KEY || 'verxiel_secure_key_2024_very_long_and_secure_key_for_encryption';
+// Database configuration for cPanel MySQL
+const DB_HOST = process.env.DB_HOST || 'localhost';
+const DB_NAME = process.env.DB_NAME || process.env.DATABASE_NAME;
+const DB_USER = process.env.DB_USER || process.env.DATABASE_USER;
+const DB_PASSWORD = process.env.DB_PASSWORD || process.env.DATABASE_PASSWORD;
+const DB_PORT = process.env.DB_PORT || 3306;
 
 // Log environment variables for debugging
 console.log('🔍 Environment check:');
-console.log('DATABASE_URL exists:', !!DATABASE_URL);
+console.log('DB_HOST:', DB_HOST);
+console.log('DB_NAME exists:', !!DB_NAME);
+console.log('DB_USER exists:', !!DB_USER);
+console.log('DB_PORT:', DB_PORT);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('PORT:', process.env.PORT);
 
 let sequelize;
 
-if (DATABASE_URL) {
-  // Production: Use PostgreSQL from DATABASE_URL (Render.com, Heroku, etc.)
-  console.log('🚀 Using PostgreSQL database from DATABASE_URL');
-  sequelize = new Sequelize(DATABASE_URL, {
-    dialect: 'postgres',
-    protocol: 'postgres',
+if (DB_NAME && DB_USER && DB_PASSWORD) {
+  // Production: Use MySQL from cPanel
+  console.log('🚀 Using MySQL database from cPanel');
+  sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
+    host: DB_HOST,
+    port: DB_PORT,
+    dialect: 'mysql',
     dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false
-      },
       // Connection pool settings for production
-      pool: {
-        max: 20,
-        min: 0,
-        acquire: 30000,
-        idle: 10000
-      }
+      connectTimeout: 60000,
+    },
+    pool: {
+      max: 10,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
     },
     logging: false, // Disable SQL logs in production
     define: {
@@ -52,7 +56,6 @@ if (DATABASE_URL) {
     logging: false,
     dialectOptions: {
       mode: 'sqlite3',
-      key: DB_ENCRYPTION_KEY,
       busyTimeout: 30000,
       pragma: {
         journal_mode: 'WAL',
@@ -78,19 +81,22 @@ if (DATABASE_URL) {
 // Test database connection
 sequelize.authenticate()
   .then(() => {
-    if (DATABASE_URL) {
-      console.log('✅ PostgreSQL database connection established successfully');
-      console.log('🌐 Cloud database ready for production use');
+    if (DB_NAME && DB_USER && DB_PASSWORD) {
+      console.log('✅ MySQL database connection established successfully');
+      console.log('🌐 cPanel database ready for production use');
     } else {
       console.log('✅ SQLite database connection established successfully');
-      console.log('🔐 Database encryption enabled with key length:', DB_ENCRYPTION_KEY.length);
       console.log('🛡️ Security features: WAL mode, secure delete, foreign keys enabled');
     }
   })
   .catch(err => {
     console.error('❌ Database connection error:', err);
-    if (DATABASE_URL) {
-      console.error('💡 Make sure your DATABASE_URL is correct and the database is accessible');
+    if (DB_NAME && DB_USER && DB_PASSWORD) {
+      console.error('💡 Make sure your MySQL credentials are correct:');
+      console.error('   DB_HOST:', DB_HOST);
+      console.error('   DB_NAME:', DB_NAME);
+      console.error('   DB_USER:', DB_USER);
+      console.error('   DB_PORT:', DB_PORT);
     }
   });
 
