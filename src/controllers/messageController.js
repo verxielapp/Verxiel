@@ -140,3 +140,104 @@ exports.getMessages = async (req, res) => {
     res.status(500).json({ message: 'Mesajlar alınamadı', error: err.message });
   }
 };
+
+// Mesaj güncelleme
+exports.updateMessage = async (req, res) => {
+  try {
+    const messageId = req.params.id;
+    const { content } = req.body;
+    const userId = req.user.id;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Yeni mesaj içeriği gerekli' });
+    }
+
+    const message = await Message.findByPk(messageId);
+    if (!message) {
+      return res.status(404).json({ message: 'Mesaj bulunamadı' });
+    }
+
+    if (message.fromId !== userId) {
+      return res.status(403).json({ message: 'Bu mesajı güncelleme yetkiniz yok' });
+    }
+
+    message.content = content.trim();
+    await message.save();
+
+    res.json({
+      success: true,
+      message: 'Mesaj güncellendi',
+      data: message
+    });
+  } catch (error) {
+    console.error('Error updating message:', error);
+    res.status(500).json({
+      message: 'Mesaj güncellenemedi',
+      error: error.message
+    });
+  }
+};
+
+// Mesaj silme
+exports.deleteMessage = async (req, res) => {
+  try {
+    const messageId = req.params.id;
+    const userId = req.user.id;
+
+    const message = await Message.findByPk(messageId);
+    if (!message) {
+      return res.status(404).json({ message: 'Mesaj bulunamadı' });
+    }
+
+    if (message.fromId !== userId) {
+      return res.status(403).json({ message: 'Bu mesajı silme yetkiniz yok' });
+    }
+
+    await message.destroy();
+
+    res.json({
+      success: true,
+      message: 'Mesaj silindi'
+    });
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    res.status(500).json({
+      message: 'Mesaj silinemedi',
+      error: error.message
+    });
+  }
+};
+
+// Mesajları okundu olarak işaretleme
+exports.markMessagesAsRead = async (req, res) => {
+  try {
+    const { messageIds } = req.body;
+    const userId = req.user.id;
+
+    if (!Array.isArray(messageIds) || messageIds.length === 0) {
+      return res.status(400).json({ message: 'Mesaj ID listesi gerekli' });
+    }
+
+    const [updatedCount] = await Message.update(
+      { read: true },
+      {
+        where: {
+          id: messageIds,
+          toId: userId
+        }
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Mesajlar okundu olarak işaretlendi',
+      updated: updatedCount
+    });
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    res.status(500).json({
+      message: 'Mesajlar okundu olarak işaretlenemedi',
+      error: error.message
+    });
+  }
+};
