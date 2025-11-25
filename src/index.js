@@ -86,11 +86,12 @@ const syncDatabase = async () => {
       await sequelize.query(`
         CREATE TABLE IF NOT EXISTS Messages (
           id INT AUTO_INCREMENT PRIMARY KEY,
-          content TEXT NOT NULL,
+          content TEXT,
           fromId INT,
           toId INT,
           groupId INT,
           image TEXT,
+          audio TEXT,
           type VARCHAR(50) DEFAULT 'text',
           timestamp BIGINT DEFAULT (UNIX_TIMESTAMP(NOW()) * 1000),
           \`read\` TINYINT(1) DEFAULT 0,
@@ -111,6 +112,9 @@ const syncDatabase = async () => {
       } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
       try {
         await sequelize.query(`ALTER TABLE Messages ADD COLUMN \`read\` TINYINT(1) DEFAULT 0;`);
+      } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
+      try {
+        await sequelize.query(`ALTER TABLE Messages ADD COLUMN audio TEXT;`);
       } catch (e) { if (!e.message.includes('Duplicate column')) throw e; }
       console.log('✅ Messages table columns ensured');
       
@@ -165,11 +169,12 @@ const syncDatabase = async () => {
       await sequelize.query(`
         CREATE TABLE IF NOT EXISTS "Messages" (
           "id" SERIAL PRIMARY KEY,
-          "content" TEXT NOT NULL,
+          "content" TEXT,
           "fromId" INTEGER REFERENCES "Users"("id"),
           "toId" INTEGER REFERENCES "Users"("id"),
           "groupId" INTEGER,
           "image" TEXT,
+          "audio" TEXT,
           "type" VARCHAR(50) DEFAULT 'text',
           "timestamp" BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000,
           "read" BOOLEAN DEFAULT false,
@@ -183,6 +188,7 @@ const syncDatabase = async () => {
       await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "groupId" INTEGER;`);
       await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "timestamp" BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000;`);
       await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "read" BOOLEAN DEFAULT false;`);
+      await sequelize.query(`ALTER TABLE "Messages" ADD COLUMN IF NOT EXISTS "audio" TEXT;`);
       console.log('✅ Messages table columns ensured');
       
       // Create FriendRequests table
@@ -480,11 +486,22 @@ app.get('/api/db-integrity', async (req, res) => {
 const server = http.createServer(app);
 const io = new Server(server, { 
   cors: { 
-    origin: ["https://verxiel.netlify.app", "http://localhost:3000", "https://verxiel.onrender.com"],
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [
+      "https://verxiel.netlify.app", 
+      "http://localhost:3000", 
+      "https://verxiel.onrender.com",
+      "https://verxiel.com",
+      "https://www.verxiel.com"
+    ],
     methods: ["GET", "POST"],
     credentials: true
   } 
 });
+
+// Socket.io instance'ını messageController'a geçir (real-time mesajlaşma için)
+const messageController = require('./controllers/messageController');
+messageController.setIO(io);
+
 chatSocket(io);
 
 // Start server immediately after database sync

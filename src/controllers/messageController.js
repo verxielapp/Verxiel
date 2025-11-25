@@ -1,18 +1,26 @@
 const Message = require('../models/Message');
 const User = require('../models/User');
 
+// Socket.io instance'ını almak için global değişken
+let ioInstance = null;
+
+// Socket.io instance'ını set et
+exports.setIO = (io) => {
+  ioInstance = io;
+};
+
 // Mesaj gönderme
 exports.sendMessage = async (req, res) => {
   try {
-    const { to, content, type = 'text', image, groupId } = req.body;
+    const { to, content, type = 'text', image, audio, groupId, replyTo } = req.body;
     const fromId = req.user.id;
 
     if (!to && !groupId) {
       return res.status(400).json({ message: 'Alıcı veya grup ID gerekli' });
     }
 
-    if (!content && !image) {
-      return res.status(400).json({ message: 'Mesaj içeriği veya resim gerekli' });
+    if (!content && !image && !audio) {
+      return res.status(400).json({ message: 'Mesaj içeriği, resim veya ses gerekli' });
     }
 
     let toId = to;
@@ -31,8 +39,9 @@ exports.sendMessage = async (req, res) => {
       fromId: fromId,
       toId: toId,
       groupId: groupId,
-      content: content,
-      image: image,
+      content: content || null,
+      image: image || null,
+      audio: audio || null,
       type: type,
       timestamp: Date.now()
     });
@@ -54,6 +63,21 @@ exports.sendMessage = async (req, res) => {
     });
 
     console.log('Message sent via HTTP:', populatedMessage);
+
+    // Socket ile real-time broadcast et
+    if (ioInstance) {
+      if (groupId) {
+        ioInstance.to(groupId.toString()).emit('message', populatedMessage);
+      } else if (toId) {
+        // Alıcıya gönder
+        ioInstance.to(toId.toString()).emit('message', populatedMessage);
+        // Gönderene de gönder
+        ioInstance.to(fromId.toString()).emit('message', populatedMessage);
+      }
+      console.log('Message broadcasted via socket');
+    } else {
+      console.warn('Socket.io instance not available, message not broadcasted');
+    }
 
     res.status(201).json({
       success: true,
@@ -115,4 +139,4 @@ exports.getMessages = async (req, res) => {
     console.error('Error fetching messages:', err);
     res.status(500).json({ message: 'Mesajlar alınamadı', error: err.message });
   }
-}; 
+};

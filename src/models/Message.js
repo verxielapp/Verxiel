@@ -9,9 +9,13 @@ const Message = sequelize.define('Message', {
   },
   content: {
     type: DataTypes.TEXT,
-    allowNull: false
+    allowNull: true
   },
   image: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  audio: {
     type: DataTypes.TEXT,
     allowNull: true
   },
@@ -52,4 +56,4 @@ const Message = sequelize.define('Message', {
   timestamps: true
 });
 
-module.exports = Message; 
+module.exports = Message;

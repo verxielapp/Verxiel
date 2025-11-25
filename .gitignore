@@ -51,3 +51,4 @@ jspm_packages/
 # dotenv environment variables file
 .env 
 CPANEL_SETUP.md
+SECURITY_FIX.md
